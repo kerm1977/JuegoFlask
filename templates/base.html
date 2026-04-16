@@ -4,9 +4,18 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juegos - Multijugador</title>
-     <!-- Custom CSS (Glassmorphism) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>La Tribu - Multijugador</title>
+    
+    <!-- Etiquetas PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0dcaf0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="La Tribu">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+
+    <!-- Bootstrap CSS y Custom CSS (Glassmorphism) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
 <body class="bg-dark text-light pb-5"> <!-- pb-5 para dar espacio a la barra móvil -->
@@ -23,128 +32,175 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center">
+                    
+                    <!-- BOTÓN INSTALAR PWA (Escritorio) -->
                     <li class="nav-item me-3">
-                        <button class="btn btn-sm btn-outline-light rounded-pill" onclick="solicitarListaJugadores()">
+                        <button id="installPwaBtn" class="btn btn-success btn-sm rounded-pill fw-bold shadow shadow-sm" onclick="installPWA()" style="display: none;">
+                            <i class="bi bi-download"></i> Instalar App
+                        </button>
+                    </li>
+
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item me-3">
+                        <!-- CORREGIDO: Ahora es un <a> con href hacia users.profile -->
+                        <a class="btn btn-outline-info btn-sm rounded-pill fw-bold" href="{{ url_for('users.profile') }}">
+                            <i class="bi bi-person-badge"></i> Mi Perfil
+                        </a>
+                    </li>
+                    <li class="nav-item me-3">
+                        <button class="btn btn-outline-light btn-sm rounded-pill" onclick="solicitarListaJugadores()">
                             <i class="bi bi-people-fill"></i> Jugadores
                         </button>
                     </li>
-                    {% if current_user.is_authenticated %}
-                        <li class="nav-item">
-                            <span class="nav-link text-info"><i class="bi bi-person-circle"></i> {{ current_user.username }}</span>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-danger" href="{{ url_for('users.logout') }}">Cerrar Sesión</a>
-                        </li>
+                    <li class="nav-item">
+                        <a class="btn btn-outline-danger btn-sm rounded-pill" href="{{ url_for('users.logout') }}">
+                            <i class="bi bi-box-arrow-right"></i> Salir
+                        </a>
+                    </li>
                     {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('users.login') }}">Iniciar Sesión</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('users.register') }}">Crear Cuenta</a>
-                        </li>
+                    <li class="nav-item">
+                        <a class="btn btn-info btn-sm rounded-pill fw-bold" href="{{ url_for('users.login') }}">
+                            Ingresar
+                        </a>
+                    </li>
                     {% endif %}
                 </ul>
             </div>
         </div>
     </nav>
 
-    <div class="container main-content">
+    <!-- Main Content -->
+    <div class="container relative-z">
         {% block content %}{% endblock %}
     </div>
 
-    <!-- ========================================== -->
-    <!-- BARRA DE NAVEGACIÓN INFERIOR (MÓVIL)       -->
-    <!-- ========================================== -->
-    <div class="mobile-bottom-bar d-md-none glass-navbar">
+    <!-- Mobile Bottom Bar -->
+    <div class="mobile-bottom-bar glass-navbar d-md-none">
         <a href="{{ url_for('games.dashboard') }}" class="mobile-nav-item">
-            <i class="bi bi-joystick"></i>
-            <span>Juegos</span>
-        </a>
-        <a href="#" class="mobile-nav-item text-warning" onclick="solicitarListaJugadores()">
-            <i class="bi bi-people-fill"></i>
-            <span>Jugadores</span>
+            <i class="bi bi-house-door"></i>
+            <span>Inicio</span>
         </a>
         {% if current_user.is_authenticated %}
+        <a href="#" class="mobile-nav-item" onclick="solicitarListaJugadores()">
+            <i class="bi bi-people"></i>
+            <span>Jugadores</span>
+        </a>
+        <!-- CORREGIDO: Ahora redirige a users.profile en lugar de ejecutar onclick -->
+        <a href="{{ url_for('users.profile') }}" class="mobile-nav-item">
+            <i class="bi bi-person-badge"></i>
+            <span>Perfil</span>
+        </a>
+        <!-- BOTÓN INSTALAR PWA (Móvil) -->
+        <a href="#" id="installPwaBtnMobile" class="mobile-nav-item text-success" onclick="installPWA()" style="display: none;">
+            <i class="bi bi-download"></i>
+            <span>Instalar</span>
+        </a>
         <a href="{{ url_for('users.logout') }}" class="mobile-nav-item text-danger">
             <i class="bi bi-box-arrow-right"></i>
             <span>Salir</span>
         </a>
         {% else %}
-        <a href="{{ url_for('users.login') }}" class="mobile-nav-item text-info">
-            <i class="bi bi-person-check-fill"></i>
-            <span>Entrar</span>
+        <a href="{{ url_for('users.login') }}" class="mobile-nav-item">
+            <i class="bi bi-box-arrow-in-right"></i>
+            <span>Ingresar</span>
         </a>
         {% endif %}
     </div>
 
-    <!-- ========================================== -->
-    <!-- MODAL: LISTA DE JUGADORES                  -->
-    <!-- ========================================== -->
+    <!-- OVERLAYS Y MODALES GLOBALES -->
+
+    <!-- Overlay de Nuevo Reto -->
+    <div class="reto-overlay" id="retoOverlay" style="display: none;">
+        <div class="reto-box glass-panel p-4 text-center">
+            <i class="bi bi-lightning-charge-fill text-warning display-1 heartbeat mb-3"></i>
+            <h2 class="text-white fw-bold mb-4">¡NUEVO RETO!</h2>
+            <h5 class="text-light mb-4" id="retadorNombre"></h5>
+            <div class="d-flex justify-content-center gap-3">
+                <button class="btn btn-danger btn-lg rounded-pill px-4 shadow" onclick="confirmarRechazo()"><i class="bi bi-x-circle"></i> Rechazar</button>
+                <button class="btn btn-success btn-lg rounded-pill px-4 shadow" onclick="responderReto(true)"><i class="bi bi-check-circle"></i> ¡Aceptar!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Jugadores -->
     <div class="modal fade" id="playersModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content glass-modal">
+            <div class="modal-content glass-modal border-info">
                 <div class="modal-header border-secondary">
-                    <h5 class="modal-title"><i class="bi bi-people"></i> Todos los Jugadores</h5>
+                    <h5 class="modal-title text-info"><i class="bi bi-people-fill"></i> Jugadores en La Tribu</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body" id="playersListContainer">
-                    <div class="text-center text-muted"><div class="spinner-border spinner-border-sm"></div> Cargando jugadores...</div>
+                <div class="modal-body p-0" id="playersListContainer">
+                    <div class="text-center p-4"><div class="spinner-border text-info"></div></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal Auxiliar: Elegir Juego para el Reto -->
+    <!-- Modal Seleccionar Juego -->
     <div class="modal fade" id="selectGameModal" tabindex="-1">
-        <div class="modal-dialog modal-sm modal-dialog-centered">
-            <div class="modal-content glass-modal text-center">
-                <div class="modal-header border-0 justify-content-center">
-                    <h6 class="modal-title text-info">¿A qué quieres jugar?</h6>
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content glass-modal border-warning text-center">
+                <div class="modal-header border-secondary justify-content-center">
+                    <h5 class="modal-title text-warning"><i class="bi bi-controller"></i> Elige el campo de batalla</h5>
                 </div>
-                <div class="modal-body d-grid gap-2">
-                    <button class="btn btn-outline-light glass-btn" onclick="enviarReto('gato')">Gato</button>
-                    <button class="btn btn-outline-light glass-btn" onclick="enviarReto('4linea')">4 en Línea</button>
-                    <button class="btn btn-outline-light glass-btn" onclick="enviarReto('damas')">Damas Clásicas</button>
-                    <button class="btn btn-outline-light glass-btn" onclick="enviarReto('reversi')">Reversi (Othello)</button>
-                    <button class="btn btn-outline-light glass-btn" onclick="enviarReto('gomoku')">Gomoku (5 en línea)</button>
+                <div class="modal-body py-4">
+                    <div class="d-grid gap-3">
+                        <button class="btn btn-outline-primary btn-lg rounded-pill" onclick="enviarReto('gato')"><i class="bi bi-grid-3x3"></i> Gato</button>
+                        <button class="btn btn-outline-info btn-lg rounded-pill" onclick="enviarReto('4linea')"><i class="bi bi-ui-radios-grid"></i> 4 en Línea</button>
+                        <button class="btn btn-outline-danger btn-lg rounded-pill" onclick="enviarReto('damas')"><i class="bi bi-ui-checks-grid"></i> Damas</button>
+                        <button class="btn btn-outline-light btn-lg rounded-pill" onclick="enviarReto('reversi')"><i class="bi bi-yin-yang"></i> Reversi</button>
+                        <button class="btn btn-outline-warning btn-lg rounded-pill" onclick="enviarReto('gomoku')"><i class="bi bi-pentagon-half"></i> Gomoku</button>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary justify-content-center">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal" onclick="if(playersModalInst) playersModalInst.show()">Volver a Jugadores</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- OVERLAY GIGANTE: RECIBIR UN RETO           -->
-    <!-- ========================================== -->
-    <div id="retoOverlay" class="reto-overlay" style="display: none;">
-        <div class="reto-box glass-panel text-center p-4 p-md-5">
-            <h1 class="text-warning display-1 mb-3"><i class="bi bi-exclamation-triangle-fill heartbeat"></i></h1>
-            <h2 class="text-white fw-bold mb-2">¡TE HAN RETADO!</h2>
-            <h4 class="text-info mb-4" id="retadorNombre">Usuario quiere jugar...</h4>
-            <p class="lead mb-5">¿Estás listo para aceptar el desafío?</p>
-            
-            <div class="d-flex flex-column flex-sm-row justify-content-center gap-3">
-                <button class="btn btn-success btn-lg rounded-pill px-5 fw-bold shadow" onclick="responderReto(true)">
-                    <i class="bi bi-check-circle-fill"></i> ACEPTAR
-                </button>
-                <button class="btn btn-danger btn-lg rounded-pill px-5 fw-bold shadow" onclick="confirmarRechazo()">
-                    <i class="bi bi-x-circle-fill"></i> RECHAZAR
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal: Confirmar Rechazo -->
-    <div class="modal fade" id="rechazarModal" tabindex="-1" data-bs-backdrop="static">
+    <!-- Modal Rechazar -->
+    <div class="modal fade" id="rechazarModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content glass-modal border-danger text-center">
                 <div class="modal-body py-5">
                     <i class="bi bi-shield-x text-danger display-4 mb-3 d-block"></i>
                     <h4 class="fw-bold">¿Estás seguro de rechazar el juego?</h4>
-                    <p class="text-muted">El jugador será notificado de tu cobard... digo, de tu decisión. 😉</p>
+                    <p class="text-muted">El jugador será notificado de tu decisión. 😉</p>
                     <div class="mt-4">
                         <button class="btn btn-outline-light me-2" onclick="cancelarRechazo()">No, me arrepentí</button>
                         <button class="btn btn-danger px-4" onclick="responderReto(false)">Sí, rechazar</button>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal PWA Fallback para Firefox / iOS Safari -->
+    <div class="modal fade" id="pwaManualInstallModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content glass-modal border-success text-center">
+                <div class="modal-header border-secondary justify-content-center">
+                    <h5 class="modal-title text-success"><i class="bi bi-download"></i> Instalar La Tribu</h5>
+                </div>
+                <div class="modal-body py-4">
+                    <div class="d-flex justify-content-center gap-3 mb-3">
+                        <i class="bi bi-browser-firefox text-warning display-4"></i>
+                        <i class="bi bi-apple text-light display-4"></i>
+                    </div>
+                    <p>Parece que estás usando <strong>Firefox</strong> o <strong>Safari</strong>.</p>
+                    <hr class="border-secondary">
+                    <p class="text-muted small">Estos navegadores requieren instalación manual:</p>
+                    <div class="text-start bg-dark p-3 rounded" style="border: 1px solid rgba(255,255,255,0.1);">
+                        <ol class="text-light small mb-0 ps-3">
+                            <li class="mb-2">Abre el menú de tu navegador (los <i class="bi bi-three-dots-vertical"></i> 3 puntos o el icono de compartir <i class="bi bi-share"></i>).</li>
+                            <li>Selecciona <strong>"Instalar aplicación"</strong> o <strong>"Añadir a la pantalla de inicio"</strong>.</li>
+                        </ol>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary justify-content-center">
+                    <button type="button" class="btn btn-outline-success rounded-pill px-4" data-bs-dismiss="modal">Entendido</button>
                 </div>
             </div>
         </div>
@@ -155,13 +211,74 @@
     <!-- Socket.IO JS -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     
-    <!-- Asegurarse de que el usuario está disponible en JS -->
+    <!-- Variable Global del Usuario -->
     <script>
         window.CURRENT_USERNAME = "{{ current_user.username if current_user.is_authenticated else '' }}";
     </script>
     
-    <!-- Custom JS (Con versión para forzar recarga y limpiar caché) -->
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=1.5"></script>
+    <!-- Lógica de Instalación de PWA (Chrome/Brave/Edge/Firefox) -->
+    <script>
+        // Registrar Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => console.log('PWA ServiceWorker registrado exitosamente.'))
+                    .catch(err => console.log('Error PWA ServiceWorker: ', err));
+            });
+        }
+
+        // Lógica de los botones de instalación
+        let deferredPrompt;
+        const installBtnDesktop = document.getElementById('installPwaBtn');
+        const installBtnMobile = document.getElementById('installPwaBtnMobile');
+        
+        // Verificar si la PWA ya está instalada o estamos ejecutándola desde la app
+        let isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+        function updateInstallButtons(show) {
+            if (isStandalone) show = false; // Jamás mostrar si ya está instalada
+            if (installBtnDesktop) installBtnDesktop.style.display = show ? 'block' : 'none';
+            if (installBtnMobile) installBtnMobile.style.display = show ? 'flex' : 'none';
+        }
+
+        // Mostrar por defecto (Por si es Firefox, para que puedan ver el manual)
+        updateInstallButtons(true);
+
+        // Chrome, Brave y Edge disparan esto si es instalable
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e; // Guardamos el evento para lanzarlo luego
+            updateInstallButtons(true);
+        });
+
+        // Evento que se dispara al presionar los botones "Instalar"
+        window.installPWA = () => {
+            if (deferredPrompt) {
+                // Navegadores Chromium: Usar el prompt nativo
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('PWA aceptada.');
+                    }
+                    deferredPrompt = null;
+                });
+            } else {
+                // Firefox / Safari / Navegadores estrictos: Lanzar el modal manual
+                let manualModal = new bootstrap.Modal(document.getElementById('pwaManualInstallModal'));
+                manualModal.show();
+            }
+        };
+
+        // Ocultar botones una vez que la instalación es exitosa
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA instalada.');
+            isStandalone = true;
+            updateInstallButtons(false);
+        });
+    </script>
+
+    <!-- Custom JS Principal (Lógica de Juegos) -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     
     {% block scripts %}{% endblock %}
 </body>

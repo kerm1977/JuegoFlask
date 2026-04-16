@@ -2,9 +2,16 @@
 // Ubicación: static/js/
 
 // ==========================================
-// AUTENTICACIÓN Y LLAVES JSON
+// [MÓDULO: AUTH] - AUTENTICACIÓN Y LLAVES JSON
 // ==========================================
 
+/**
+ * [MÓDULO: AUTH]
+ * Alterna la visibilidad del campo de contraseña entre texto oculto y texto visible.
+ * Cambia el ícono del botón asociado.
+ * @param {string} inputId - ID del input de la contraseña.
+ * @param {string} iconId - ID del ícono de Bootstrap (el ojo).
+ */
 function togglePassword(inputId, iconId) {
     const input = document.getElementById(inputId);
     const icon = document.getElementById(iconId);
@@ -22,6 +29,12 @@ function togglePassword(inputId, iconId) {
 
 const registerForm = document.getElementById('registerForm');
 if (registerForm) {
+    /**
+     * [MÓDULO: AUTH]
+     * Escucha el evento 'submit' del formulario de registro.
+     * Valida las contraseñas, envía la petición al backend y, si es exitoso,
+     * detona la descarga de la llave JSON y muestra el modal de confirmación.
+     */
     registerForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -57,6 +70,12 @@ if (registerForm) {
     });
 }
 
+/**
+ * [MÓDULO: AUTH]
+ * Genera un archivo .json dinámicamente en el navegador con la llave de acceso
+ * y fuerza su descarga automática al dispositivo del usuario.
+ * @param {Object} keyData - Objeto JSON con el correo, PIN y el hash de la contraseña.
+ */
 function descargarLlave(keyData) {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(keyData, null, 4));
     const downloadAnchorNode = document.createElement('a');
@@ -67,6 +86,12 @@ function descargarLlave(keyData) {
     downloadAnchorNode.remove();
 }
 
+/**
+ * [MÓDULO: AUTH]
+ * Lee el archivo JSON subido por el usuario en la pantalla de Login,
+ * lo envía al backend mediante FormData para validar la sesión y, si es correcto,
+ * redirige al dashboard.
+ */
 function processRecoverKey() {
     const fileInput = document.getElementById('keyFileInput');
     const errorDiv = document.getElementById('recoverError');
@@ -101,7 +126,7 @@ function processRecoverKey() {
 }
 
 // ==========================================
-// CONEXIÓN SOCKET.IO Y SISTEMA DE RETOS
+// [MÓDULO: LOBBY] - CONEXIÓN SOCKET.IO Y SISTEMA DE RETOS
 // ==========================================
 
 // Solución: Pasar el origen de la URL explícitamente para que autoConnect: false funcione al 100%
@@ -134,6 +159,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if(document.getElementById('rechazarModal')) rechazarModalInst = new bootstrap.Modal(document.getElementById('rechazarModal'));
 });
 
+/**
+ * [MÓDULO: LOBBY]
+ * Muestra el modal de jugadores y envía un evento al servidor para obtener la lista
+ * actualizada de usuarios conectados y desconectados.
+ */
 window.solicitarListaJugadores = () => {
     if(!estaAutenticado) { alert("Debes iniciar sesión para ver los jugadores."); return; }
     document.getElementById('playersListContainer').innerHTML = '<div class="text-center"><div class="spinner-border text-info"></div></div>';
@@ -141,7 +171,7 @@ window.solicitarListaJugadores = () => {
     socket.emit('solicitar_jugadores');
 };
 
-// Escuchar cambios de estado (conectado/desconectado) en tiempo real
+// [MÓDULO: LOBBY] Escuchar cambios de estado (conectado/desconectado) en tiempo real
 socket.on('online_users_updated', () => {
     const modalEl = document.getElementById('playersModal');
     // Si el modal está abierto en pantalla, volvemos a pedir la lista automáticamente
@@ -150,6 +180,7 @@ socket.on('online_users_updated', () => {
     }
 });
 
+// [MÓDULO: LOBBY] Recibe la lista de jugadores y la renderiza en el modal correspondiente.
 socket.on('lista_jugadores', (jugadores) => {
     const container = document.getElementById('playersListContainer');
     container.innerHTML = '';
@@ -182,12 +213,23 @@ socket.on('lista_jugadores', (jugadores) => {
     });
 });
 
+/**
+ * [MÓDULO: LOBBY]
+ * Almacena el nombre del usuario a retar, oculta el modal de jugadores
+ * y abre el modal de selección de juego.
+ * @param {string} username - Nombre del jugador al que se desea retar.
+ */
 window.prepararReto = (username) => {
     targetUserToChallenge = username;
     if(playersModalInst) playersModalInst.hide();
     if(selectGameModalInst) selectGameModalInst.show();
 };
 
+/**
+ * [MÓDULO: LOBBY]
+ * Envía el reto de juego al jugador seleccionado anteriormente a través del socket.
+ * @param {string} gameType - El identificador del juego (gato, 4linea, damas, etc).
+ */
 window.enviarReto = (gameType) => {
     if(selectGameModalInst) selectGameModalInst.hide();
     socket.emit('enviar_reto', { target: targetUserToChallenge, game_type: gameType });
@@ -195,11 +237,40 @@ window.enviarReto = (gameType) => {
 };
 
 // ==========================================
-// SISTEMA DE ESTADÍSTICAS Y PAGINACIÓN
+// [MÓDULO: STATS] - SISTEMA DE ESTADÍSTICAS, PAGINACIÓN Y PERFIL
 // ==========================================
 window.currentStatsData = [];
 window.currentStatsPage = 1;
 
+/**
+ * [MÓDULO: STATS]
+ * Muestra el perfil del usuario actual (el que tiene la sesión iniciada)
+ * reutilizando el modal de estadísticas.
+ */
+window.verMiPerfil = () => {
+    if (!estaAutenticado) {
+        alert("Debes iniciar sesión para ver tu perfil.");
+        return;
+    }
+    // Ocultamos otros modales si estuvieran abiertos
+    if(playersModalInst) playersModalInst.hide();
+    const statsModal = getOrCreateStatsModal();
+    
+    // Cambiamos el título para que diga "Mi Perfil"
+    document.getElementById('statsModalTitle').innerHTML = `<i class="bi bi-person-badge"></i> Mi Perfil (${window.CURRENT_USERNAME})`;
+    document.getElementById('statsModalBody').innerHTML = '<div class="text-center my-4"><div class="spinner-border text-info"></div><p class="mt-2 text-muted">Cargando tus datos...</p></div>';
+    statsModal.show();
+    
+    // Solicitamos las estadísticas para nosotros mismos
+    socket.emit('solicitar_estadisticas', { username: window.CURRENT_USERNAME });
+};
+
+/**
+ * [MÓDULO: STATS]
+ * Construye dinámicamente el modal de estadísticas en el DOM si no existe,
+ * y devuelve la instancia de Bootstrap del modal.
+ * @returns {bootstrap.Modal} Instancia del modal de estadísticas.
+ */
 function getOrCreateStatsModal() {
     let modalEl = document.getElementById('statsModal');
     if (!modalEl) {
@@ -209,7 +280,7 @@ function getOrCreateStatsModal() {
                 <div class="modal-content glass-modal border-info">
                     <div class="modal-header border-secondary">
                         <h5 class="modal-title text-info" id="statsModalTitle"><i class="bi bi-bar-chart-fill"></i> Estadísticas</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="if(playersModalInst) playersModalInst.show()"></button>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body" id="statsModalBody">
                         <div class="text-center"><div class="spinner-border text-info"></div> Cargando...</div>
@@ -219,11 +290,25 @@ function getOrCreateStatsModal() {
         </div>`;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         modalEl = document.getElementById('statsModal');
+        
+        // Manejar el cierre del modal para regresar al modal de jugadores SI este no era el perfil
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            // Si el título no incluye "Mi Perfil", significa que estábamos viendo a otro jugador, podemos reabrir la lista
+            let titleText = document.getElementById('statsModalTitle').innerText;
+            if (playersModalInst && !titleText.includes("Mi Perfil")) {
+                playersModalInst.show();
+            }
+        });
     }
     if(!statsModalInst) statsModalInst = new bootstrap.Modal(modalEl);
     return statsModalInst;
 }
 
+/**
+ * [MÓDULO: STATS]
+ * Muestra el modal de estadísticas y emite un evento para pedir los datos al servidor.
+ * @param {string} username - El usuario del cual queremos ver el historial.
+ */
 window.verEstadisticas = (username) => {
     if(playersModalInst) playersModalInst.hide();
     const statsModal = getOrCreateStatsModal();
@@ -233,11 +318,11 @@ window.verEstadisticas = (username) => {
     socket.emit('solicitar_estadisticas', { username: username });
 };
 
+// [MÓDULO: STATS] Recibe el historial de la BD, lo agrupa por oponente/juego y llama al renderizado paginado.
 socket.on('recibir_estadisticas', (data) => {
     const body = document.getElementById('statsModalBody');
     if(!body) return;
     
-    // Agrupar historial por oponente y juego
     const grouped = {};
     if(data.historial && data.historial.length > 0) {
         data.historial.forEach(h => {
@@ -251,7 +336,6 @@ socket.on('recibir_estadisticas', (data) => {
         });
     }
     
-    // Convertir el diccionario agrupado a un array para poder paginarlo
     window.currentStatsData = Object.values(grouped);
     window.currentStatsPage = 1;
 
@@ -273,15 +357,17 @@ socket.on('recibir_estadisticas', (data) => {
         <h6 class="text-info border-bottom border-secondary pb-2 mb-3 fw-bold"><i class="bi bi-clock-history"></i> Historial de Partidas</h6>
         <div id="statsListContainer"></div>
         <div id="statsPagination" class="d-flex justify-content-between align-items-center mt-3 px-2"></div>
-        <div class="mt-4 text-center">
-            <button class="btn btn-outline-light rounded-pill px-4" data-bs-dismiss="modal" onclick="if(playersModalInst) playersModalInst.show()"><i class="bi bi-arrow-left"></i> Volver a Jugadores</button>
-        </div>
     `;
     
     body.innerHTML = headerHtml;
-    renderStatsPage(1); // Renderizamos la primera página (10 items)
+    renderStatsPage(1);
 });
 
+/**
+ * [MÓDULO: STATS]
+ * Función de paginación que renderiza una página específica del historial (10 ítems por página).
+ * @param {number} page - El número de página a renderizar.
+ */
 window.renderStatsPage = (page) => {
     window.currentStatsPage = page;
     const container = document.getElementById('statsListContainer');
@@ -318,7 +404,6 @@ window.renderStatsPage = (page) => {
     listHtml += '</ul>';
     container.innerHTML = listHtml;
 
-    // Controles de paginación
     let pagHtml = '';
     if (totalPages > 1) {
         if (page > 1) {
@@ -339,13 +424,14 @@ window.renderStatsPage = (page) => {
 };
 
 // ==========================================
-// OVERLAY GIGANTE: RECIBIR RETO
+// [MÓDULO: LOBBY] - GESTIÓN DE RETOS ENTRANTES Y OVERLAY
 // ==========================================
+
+// [MÓDULO: LOBBY] Evento socket: muestra la pantalla gigante cuando recibimos un reto de alguien.
 socket.on('recibir_reto', (data) => {
     currentChallenger = data.retador;
     currentGameToPlay = data.game_type;
     
-    // Nombres bonitos
     let gameName = data.game_type === 'gato' ? 'Gato' : (data.game_type === '4linea' ? '4 en Línea' : (data.game_type === 'damas' ? 'Damas' : (data.game_type === 'reversi' ? 'Reversi' : 'Gomoku')));
 
     document.getElementById('retadorNombre').innerHTML = `<strong>${currentChallenger}</strong> te ha retado a una partida de <strong>${gameName}</strong>.`;
@@ -353,6 +439,11 @@ socket.on('recibir_reto', (data) => {
     document.getElementById('retoOverlay').style.display = 'flex';
 });
 
+/**
+ * [MÓDULO: LOBBY]
+ * Envía nuestra respuesta final al servidor (Aceptar o Rechazar el reto).
+ * @param {boolean} aceptado - true si el usuario aceptó jugar, false en caso contrario.
+ */
 window.responderReto = (aceptado) => {
     if(rechazarModalInst) rechazarModalInst.hide();
     document.getElementById('retoOverlay').style.display = 'none';
@@ -368,22 +459,31 @@ window.responderReto = (aceptado) => {
     }
 };
 
+/**
+ * [MÓDULO: LOBBY]
+ * Muestra el modal secundario para confirmar si realmente queremos rechazar.
+ */
 window.confirmarRechazo = () => {
     document.getElementById('retoOverlay').style.display = 'none';
     if(rechazarModalInst) rechazarModalInst.show();
 };
 
+/**
+ * [MÓDULO: LOBBY]
+ * Oculta el modal de rechazo y vuelve a mostrar el Overlay de reto principal.
+ */
 window.cancelarRechazo = () => {
     if(rechazarModalInst) rechazarModalInst.hide();
     document.getElementById('retoOverlay').style.display = 'flex';
 };
 
+// [MÓDULO: LOBBY] Evento socket: nos notifica si la otra persona no quiso jugar.
 socket.on('reto_rechazado', (data) => {
     alert(`El jugador ${data.retado} ha rechazado tu reto. ¡Qué gallina! 🐔`);
 });
 
 // ==========================================
-// REGLAS Y LÓGICA DE JUEGOS CON IA (Vs PC)
+// [MÓDULO: GAME_CORE] - REGLAS, TABLERO Y LÓGICA PRINCIPAL DEL JUEGO
 // ==========================================
 window.currentGame = null; 
 let localSelection = { selectedPiece: null, validMoves: [], multiJumping: false };
@@ -393,13 +493,19 @@ document.addEventListener("DOMContentLoaded", () => {
     if (document.getElementById('gameOverModal')) bsGameOverModal = new bootstrap.Modal(document.getElementById('gameOverModal'));
 });
 
+/**
+ * [MÓDULO: GAME_CORE]
+ * Genera el estado inicial del tablero (array de ceros, o con fichas iniciales) dependiendo del juego.
+ * @param {string} type - Tipo de juego ('gato', '4linea', 'damas', 'reversi', 'gomoku').
+ * @returns {Object} Objeto con la propiedad board conteniendo el array inicial.
+ */
 function getInitialState(type) {
     if(type === 'gato') return { board: Array(9).fill(0) };
     if(type === '4linea') return { board: Array(42).fill(0) }; 
     if(type === 'gomoku') return { board: Array(225).fill(0) }; // 15x15
     if(type === 'reversi') {
         let b = Array(64).fill(0);
-        b[27] = 2; b[28] = 1; b[35] = 1; b[36] = 2; // Centro inicial
+        b[27] = 2; b[28] = 1; b[35] = 1; b[36] = 2; // Centro inicial Reversi
         return { board: b };
     }
     if(type === 'damas') {
@@ -413,7 +519,13 @@ function getInitialState(type) {
     return {};
 }
 
-// Iniciar juego modificado para recibir si es contra la PC o no
+/**
+ * [MÓDULO: GAME_CORE]
+ * Inicializa y configura la variable global currentGame para una partida local (Humano o vs PC).
+ * Transiciona la vista del lobby al tablero.
+ * @param {string} type - Tipo de juego.
+ * @param {boolean} vsPC - Indica si la partida será contra la Inteligencia Artificial.
+ */
 window.startLocalGame = (type, vsPC = false) => {
     window.currentGame = { 
         mode: 'local', 
@@ -428,6 +540,11 @@ window.startLocalGame = (type, vsPC = false) => {
     renderGameBoard();
 };
 
+/**
+ * [MÓDULO: GAME_CORE]
+ * Dibuja el tablero en pantalla iterando sobre el estado (window.currentGame.gameState.board).
+ * Añade las clases CSS, las animaciones de victoria y los event listeners de clic a las casillas.
+ */
 window.renderGameBoard = () => {
     if(!window.currentGame) return;
     const boardDiv = document.getElementById('gameBoard');
@@ -441,6 +558,7 @@ window.renderGameBoard = () => {
     
     let isMyTurn, myPlayerNum, indicatorText, indicatorClass;
 
+    // Configuración de indicadores de turno (Local vs Multi)
     if (window.currentGame.mode === 'local') {
         const j = window.currentGame.currentLocalTurn; 
         isMyTurn = true; 
@@ -484,7 +602,7 @@ window.renderGameBoard = () => {
 
     boardDiv.innerHTML = '';
     
-    // Estilos de tablero
+    // Estilos de tablero contenedor
     if(type === 'gato') boardDiv.className = 'game-board glass-panel grid-3x3';
     else if(type === '4linea') boardDiv.className = 'game-board glass-panel grid-7x6';
     else if(type === 'damas') boardDiv.className = 'game-board glass-panel grid-8x8';
@@ -555,10 +673,17 @@ window.renderGameBoard = () => {
 };
 
 // ==========================================
-// AYUDANTES: LÓGICA DE JUEGOS Y IA
+// [MÓDULO: GAME_LOGIC] - REVISIÓN DE VICTORIAS, IA Y LÓGICA DE JUEGOS
 // ==========================================
 
-// Helper para la IA de Gato
+/**
+ * [MÓDULO: GAME_LOGIC]
+ * Función auxiliar para el algoritmo de IA (Gato).
+ * Devuelve el índice vacío que permite ganar en este turno al jugador evaluado.
+ * @param {Array} board - Estado del tablero de Gato.
+ * @param {number} player - Número de jugador a evaluar (1 o 2).
+ * @returns {number} Índice de la casilla ganadora o -1.
+ */
 function findWinningMoveGato(board, player) {
     const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
     for (let l of lines) {
@@ -570,7 +695,14 @@ function findWinningMoveGato(board, player) {
     return -1;
 }
 
-// Helper para la IA de 4 en Linea
+/**
+ * [MÓDULO: GAME_LOGIC]
+ * Función auxiliar para el algoritmo de IA (4 en Línea).
+ * Calcula en qué fila caería una ficha si se suelta en una columna específica.
+ * @param {Array} board - Estado del tablero 4 en Línea.
+ * @param {number} col - Índice de la columna (0 a 6).
+ * @returns {number} Fila donde caerá la ficha o -1 si la columna está llena.
+ */
 function getC4DropRow(board, col) {
     for(let r=5; r>=0; r--) {
         if(board[r*7+col] === 0) return r;
@@ -578,6 +710,12 @@ function getC4DropRow(board, col) {
     return -1;
 }
 
+/**
+ * [MÓDULO: GAME_LOGIC]
+ * Evalúa el tablero de Gomoku (15x15) buscando 5 fichas seguidas en cualquier dirección.
+ * @param {Array} b - Array con el estado de las 225 casillas.
+ * @returns {Object|null} Devuelve {p: jugadorGanador, line: [casillas]} o null/empate.
+ */
 function checkGomokuWin(b) {
     const dirs = [[0,1], [1,0], [1,1], [1,-1]];
     for(let r=0; r<15; r++) {
@@ -599,6 +737,15 @@ function checkGomokuWin(b) {
     } return b.includes(0) ? null : { p: -1, line: [] };
 }
 
+/**
+ * [MÓDULO: GAME_LOGIC]
+ * Evalúa las reglas de Reversi/Othello. Calcula qué fichas enemigas serían
+ * volteadas si el jugador coloca su ficha en un índice determinado.
+ * @param {Array} board - Estado del tablero de Reversi.
+ * @param {number} idx - Índice donde se quiere colocar la ficha.
+ * @param {number} pNum - Número del jugador actual.
+ * @returns {Array} Un array con los índices de todas las fichas que serían volteadas.
+ */
 function getReversiFlips(board, idx, pNum) {
     if (board[idx] !== 0) return [];
     let flips = []; let opp = pNum === 1 ? 2 : 1;
@@ -612,9 +759,13 @@ function getReversiFlips(board, idx, pNum) {
     return flips;
 }
 
-// ==========================================
-// CEREBRO DE LA PC (INTELIGENCIA ARTIFICIAL)
-// ==========================================
+/**
+ * [MÓDULO: GAME_LOGIC] / [MÓDULO: AI]
+ * CEREBRO DE LA PC. Es la Inteligencia Artificial de la aplicación.
+ * Evalúa el tablero actual dependiendo del juego e invoca 'attemptMove' 
+ * para ejecutar el movimiento decidido simulando un clic humano.
+ * Usa heurística básica y evaluación predictiva de victoria/bloqueo de 1 nivel.
+ */
 window.makePCMove = () => {
     if (!window.currentGame || window.currentGame.status !== 'playing' || window.currentGame.currentLocalTurn !== 2) return;
     
@@ -718,7 +869,7 @@ window.makePCMove = () => {
             if(getReversiFlips(state.board, i, pNum).length > 0) validMoves.push(i);
         }
         if(validMoves.length > 0) {
-            // Algoritmo de IA simple para Reversi: Priorizar las 4 esquinas si están disponibles
+            // IA Básica para Reversi: Priorizar las 4 esquinas si están disponibles
             const corners = [0, 7, 56, 63];
             let cornerFound = validMoves.find(m => corners.includes(m));
             if(cornerFound !== undefined) {
@@ -759,8 +910,8 @@ window.makePCMove = () => {
 
             if(possibleMoves.length > 0) {
                 let move = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
-                attemptMove(move.start, pNum, true); // La PC selecciona la ficha
-                setTimeout(() => attemptMove(move.end, pNum, true), 500); // La PC mueve la ficha
+                attemptMove(move.start, pNum, true); // La PC selecciona la ficha visualmente
+                setTimeout(() => attemptMove(move.end, pNum, true), 500); // 500ms después hace el movimiento
                 return;
             }
         }
@@ -771,6 +922,16 @@ window.makePCMove = () => {
     }
 };
 
+/**
+ * [MÓDULO: GAME_LOGIC]
+ * Reglas de movimiento válidas para las Damas. Calcula los saltos, movimientos simples,
+ * comportamiento de las piezas normales (solo adelante) y Reyes (ambas direcciones).
+ * @param {Array} board - Estado del tablero 8x8.
+ * @param {number} startIdx - Índice origen de la ficha.
+ * @param {number} pNum - Número del jugador actual.
+ * @param {boolean} onlyJumps - Si es true, solo devuelve array con los índices de salto/captura.
+ * @returns {Array} Casillas válidas a las que se puede mover.
+ */
 function getValidCheckersMoves(board, startIdx, pNum, onlyJumps) {
     let moves = []; let r = Math.floor(startIdx/8), c = startIdx%8;
     let isKing = board[startIdx] > 2; let dirs = [];
@@ -789,6 +950,13 @@ function getValidCheckersMoves(board, startIdx, pNum, onlyJumps) {
     } return moves;
 }
 
+/**
+ * [MÓDULO: GAME_LOGIC]
+ * Evalúa el tablero de 4 en Línea verificando horizontal, vertical y diagonalmente
+ * para buscar 4 casillas iguales.
+ * @param {Array} b - Array del tablero (42 casillas).
+ * @returns {Object|null} Retorna {p: Jugador, line: [casillas]} o null.
+ */
 function checkC4Win(b) {
     for(let r=0; r<6; r++) {
         for(let c=0; c<7; c++) {
@@ -801,12 +969,34 @@ function checkC4Win(b) {
     } return b.includes(0) ? null : {p: -1, line: []};
 }
 
+/**
+ * [MÓDULO: GAME_LOGIC]
+ * Verifica si hay victoria en el clásico juego de Gato (3x3).
+ * @param {Array} b - Tablero de 9 posiciones.
+ * @returns {Object|null}
+ */
+function checkTicTacToeWin(b) {
+    const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    for(let l of lines) { 
+        if(b[l[0]] !== 0 && b[l[0]] === b[l[1]] && b[l[0]] === b[l[2]]) return {p: b[l[0]], line: l};
+    }
+    return b.includes(0) ? null : {p: -1, line: []};
+}
+
+/**
+ * [MÓDULO: GAME_CORE]
+ * Corazón del juego. Se ejecuta cada vez que un jugador (o la PC) hace clic
+ * en el tablero. Ejecuta la lógica del juego actual, cambia los turnos y avisa
+ * por WebSockets (si es online) o llama al bot (si es vs PC).
+ * @param {number} index - Índice de la casilla pulsada.
+ * @param {number} myPlayerNum - Número del jugador ejecutando el clic.
+ * @param {boolean} isMyTurn - Permite o rechaza la acción según de quién es el turno.
+ */
 function attemptMove(index, myPlayerNum, isMyTurn) {
-    if(!isMyTurn || window.currentGame.status !== 'playing') return;
-    
-    // MÓDULO 2: Bloqueo estricto anti-trampas. 
-    // Evita que el jugador humano presione el tablero si es el turno de la máquina (2).
-    if(window.currentGame.mode === 'local' && window.currentGame.vsPC && window.currentGame.currentLocalTurn === 2 && myPlayerNum === 1) return;
+    // BLOQUEO DE UI: Si no es el turno, o si estamos jugando vs PC y es el turno de la máquina (2)
+    if(!isMyTurn || window.currentGame.status !== 'playing' || (window.currentGame.mode === 'local' && window.currentGame.vsPC && window.currentGame.currentLocalTurn === 2 && myPlayerNum === 1)) {
+        return; 
+    }
     
     let state = JSON.parse(JSON.stringify(window.currentGame.gameState)); 
     let type = window.currentGame.gameType; let validMove = false; let endTurn = true; 
@@ -843,29 +1033,21 @@ function attemptMove(index, myPlayerNum, isMyTurn) {
         }
     }
 
+    // Procesamiento posterior del movimiento si fue válido
     if(validMove) {
         let winnerNum = 0;
         let winningLine = [];
 
         if(type === 'gato') {
-            const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-            for(let l of lines) { 
-                if(state.board[l[0]] && state.board[l[0]] === state.board[l[1]] && state.board[l[0]] === state.board[l[2]]) {
-                    winnerNum = state.board[l[0]];
-                    winningLine = l;
-                }
-            }
-            if(!winnerNum && !state.board.includes(0)) winnerNum = -1; 
+            let res = checkTicTacToeWin(state.board);
+            if(res) { winnerNum = res.p; winningLine = res.line; }
         } else if (type === '4linea') { 
             let res = checkC4Win(state.board);
             if(res) { winnerNum = res.p; winningLine = res.line; }
-        }
-        else if (type === 'gomoku') { 
+        } else if (type === 'gomoku') { 
             let res = checkGomokuWin(state.board);
             if(res) { winnerNum = res.p; winningLine = res.line; }
-        }
-        else if (type === 'reversi') {
-            // Verificar si el oponente puede jugar, sino nos devuelve el turno
+        } else if (type === 'reversi') {
             if (endTurn) {
                 let nextP = myPlayerNum === 1 ? 2 : 1; let nextHasMoves = false; let myHasMoves = false;
                 for(let i=0; i<64; i++) {
@@ -875,11 +1057,11 @@ function attemptMove(index, myPlayerNum, isMyTurn) {
                     }
                 }
                 if (!nextHasMoves) {
-                    if (!myHasMoves) { // Fin del juego (Ninguno puede mover o lleno)
+                    if (!myHasMoves) { 
                         let p1 = state.board.filter(c=>c===1).length; let p2 = state.board.filter(c=>c===2).length;
                         winnerNum = p1 > p2 ? 1 : (p2 > p1 ? 2 : -1);
                         winningLine = winnerNum === 1 ? state.board.map((c, i) => c === 1 ? i : -1).filter(i => i !== -1) : (winnerNum === 2 ? state.board.map((c, i) => c === 2 ? i : -1).filter(i => i !== -1) : []);
-                    } else { endTurn = false; } // Se salta el turno del rival
+                    } else { endTurn = false; } 
                 }
             }
         }
@@ -899,9 +1081,9 @@ function attemptMove(index, myPlayerNum, isMyTurn) {
             
             renderGameBoard();
 
-            // Disparar movimiento de la PC automáticamente
+            // Disparar movimiento de la PC si es su turno
             if (window.currentGame.vsPC && window.currentGame.currentLocalTurn === 2 && window.currentGame.status === 'playing' && endTurn) {
-                setTimeout(makePCMove, 600); // La PC espera 600ms para parecer humana
+                setTimeout(makePCMove, 800); // Retardo de 800ms para que la PC "piense"
             }
         } else if (window.currentGame.mode === 'multi') {
             socket.emit('make_move', { room: window.currentGame.roomId, gameState: state, winnerNum: winnerNum, endTurn: endTurn, winningLine: winningLine });
@@ -916,8 +1098,18 @@ function attemptMove(index, myPlayerNum, isMyTurn) {
     }
 }
 
+/**
+ * [MÓDULO: GAME_CORE]
+ * Restablece las variables temporales de la pieza seleccionada (solo para Damas).
+ */
 function resetSelection() { localSelection = { selectedPiece: null, validMoves: [], multiJumping: false }; }
 
+/**
+ * [MÓDULO: GAME_CORE]
+ * Finaliza la partida, muestra los resultados visuales, abre el modal de Fin de Juego
+ * y actualiza las estadísticas (LocalStorage) si fue un juego contra la PC.
+ * @param {number} winnerNum - El número del jugador que ganó o -1 si hubo empate.
+ */
 function handleGameOverResult(winnerNum) {
     window.currentGame.status = 'finished';
     let msg = ""; let modalHeader = document.getElementById('goHeader');
@@ -926,27 +1118,21 @@ function handleGameOverResult(winnerNum) {
     else { msg = "¡Has perdido la partida!"; modalHeader.className = "modal-header border-bottom-0 justify-content-center text-danger"; }
     document.getElementById('goMessage').innerText = msg;
 
-    // ==========================================
-    // NUEVO: ESTADÍSTICAS VS PC EN LOCALSTORAGE
-    // ==========================================
+    // ESTADÍSTICAS VS PC EN LOCALSTORAGE
     let pcStatsContainer = document.getElementById('pcStatsContainer');
     if (window.currentGame.mode === 'local' && window.currentGame.vsPC) {
-        // Leemos las estadísticas actuales
         let wins = parseInt(localStorage.getItem('pc_wins') || '0');
         let losses = parseInt(localStorage.getItem('pc_losses') || '0');
         let draws = parseInt(localStorage.getItem('pc_draws') || '0');
 
-        // El jugador local vs PC siempre es el "1"
         if (winnerNum === 1) wins++;
         else if (winnerNum === 2) losses++;
         else if (winnerNum === -1) draws++;
 
-        // Guardamos las estadísticas
         localStorage.setItem('pc_wins', wins);
         localStorage.setItem('pc_losses', losses);
         localStorage.setItem('pc_draws', draws);
 
-        // Imprimimos en pantalla
         let winEl = document.getElementById('pcWinsDisplay');
         let lossEl = document.getElementById('pcLossesDisplay');
         let drawEl = document.getElementById('pcDrawsDisplay');
@@ -957,17 +1143,25 @@ function handleGameOverResult(winnerNum) {
         
         if (pcStatsContainer) pcStatsContainer.style.display = 'block';
     } else {
-        // Ocultamos el panel si la partida es local vs amigo u online
         if (pcStatsContainer) pcStatsContainer.style.display = 'none';
     }
 
     if(bsGameOverModal) bsGameOverModal.show();
 }
 
+/**
+ * [MÓDULO: GAME_CORE]
+ * Función conectada al botón de "Abandonar" en el tablero. Pide confirmación nativa.
+ */
 window.confirmSurrender = () => { if(confirm("¿Estás seguro de que deseas abandonar la partida actual?")) { closeGameOver(); } }
 
+/**
+ * [MÓDULO: GAME_CORE]
+ * Oculta el tablero, borra el juego actual de la memoria y regresa a la interfaz principal (Lobby).
+ */
 window.closeGameOver = () => { if(bsGameOverModal) bsGameOverModal.hide(); window.currentGame = null; document.getElementById('game-view').style.display = 'none'; document.getElementById('lobby-view').style.display = 'flex'; }
 
+// [MÓDULO: GAME_CORE] Escucha los movimientos recibidos del servidor para juego Online
 socket.on('update_board', (data) => {
     if (window.currentGame && window.currentGame.mode === 'multi') {
         window.currentGame.gameState = data.gameState;
@@ -980,6 +1174,7 @@ socket.on('update_board', (data) => {
     }
 });
 
+// [MÓDULO: GAME_CORE] Al recibir que el servidor emparejó a los 2, carga el tablero vacío.
 socket.on('game_started', (data) => {
     window.currentGame = { mode: 'multi', gameType: data.gameType, status: 'playing', roomId: data.roomId, turn: 1, myPlayerNum: data.myPlayerNum, opponent: data.opponent };
     window.currentGame.gameState = getInitialState(data.gameType);
@@ -988,9 +1183,15 @@ socket.on('game_started', (data) => {
 });
 
 // ==========================================
-// SISTEMA DE RECONEXIÓN (ANTISUSPENSIÓN)
+// [MÓDULO: NETWORK] - SISTEMA DE RECONEXIÓN (ANTISUSPENSIÓN)
 // ==========================================
 let disconnectModalInst = null;
+
+/**
+ * [MÓDULO: NETWORK]
+ * Constructor perezoso (Lazy Load) para el modal que salta cuando el socket pierde la conexión
+ * (ej: celular apagado o wifi caído).
+ */
 function getOrCreateDisconnectModal() {
     let modalEl = document.getElementById('disconnectModal');
     if (!modalEl) {
@@ -999,6 +1200,7 @@ function getOrCreateDisconnectModal() {
     } return new bootstrap.Modal(modalEl);
 }
 
+// [MÓDULO: NETWORK] Evento del cliente Socket cuando él mismo se desconecta.
 socket.on('disconnect', () => {
     if (window.currentGame && window.currentGame.mode === 'multi' && window.currentGame.status === 'playing') {
         if(!disconnectModalInst) disconnectModalInst = getOrCreateDisconnectModal();
@@ -1009,8 +1211,13 @@ socket.on('disconnect', () => {
     }
 });
 
+/**
+ * [MÓDULO: NETWORK]
+ * Intenta forzar la reconexión al servidor de WebSockets.
+ */
 window.reconectarJuego = () => { document.getElementById('disconnectAction').innerHTML = `<div class="spinner-border text-warning"></div><p class="mt-2 text-muted">Reconectando...</p>`; socket.connect(); };
 
+// [MÓDULO: NETWORK] El servidor nos avisa que la *otra* persona se desconectó temporalmente.
 socket.on('opponent_disconnected', () => {
     if (window.currentGame && window.currentGame.mode === 'multi' && window.currentGame.status === 'playing') {
         if(!disconnectModalInst) disconnectModalInst = getOrCreateDisconnectModal();
@@ -1021,16 +1228,19 @@ socket.on('opponent_disconnected', () => {
     }
 });
 
+// [MÓDULO: NETWORK] Cuando logramos volver a engancharnos a la red tras una desconexión.
 socket.on('connect', () => {
     if (disconnectModalInst) { disconnectModalInst.hide(); }
     if (window.currentGame && window.currentGame.mode === 'multi' && window.currentGame.status === 'playing') { socket.emit('resume_game', { room: window.currentGame.roomId }); }
 });
 
+// [MÓDULO: NETWORK] El servidor nos avisa que la otra persona ya volvió; le pasamos nuestro estado para sincronizarlo.
 socket.on('opponent_reconnected', () => {
     if (disconnectModalInst) { disconnectModalInst.hide(); }
     if (window.currentGame && window.currentGame.mode === 'multi') { socket.emit('sync_state', { room: window.currentGame.roomId, gameState: window.currentGame.gameState, turn: window.currentGame.turn }); }
 });
 
+// [MÓDULO: NETWORK] Recibimos el estado de la partida desde el otro jugador después de reconectarnos.
 socket.on('receive_sync', (data) => {
     if (window.currentGame && window.currentGame.mode === 'multi') { window.currentGame.gameState = data.gameState; window.currentGame.turn = data.turn; renderGameBoard(); }
 });

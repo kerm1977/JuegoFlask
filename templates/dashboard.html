@@ -4,104 +4,103 @@
 
 {% block content %}
 <div class="row" id="lobby-view">
-    <div class="col-12">
-        <div class="glass-panel p-5 text-center">
-            <h1><i class="bi bi-joystick text-info"></i> Bienvenido a la Sala de Juegos</h1>
-            <p class="lead mt-3">Jugador Activo: <strong>{{ user.username }}</strong></p>
-            <div id="socketStatus" class="badge bg-warning text-dark mt-2 p-2">Conectando al servidor...</div>
+    <div class="col-12 text-center mt-3 mb-5">
+        <!-- TÍTULO Y ESTADO (Flotando directo en el fondo) -->
+        <h1 class="fw-bold text-white" style="text-shadow: 0 4px 10px rgba(0,0,0,0.5);"><i class="bi bi-joystick text-info"></i> Bienvenido a la Sala de Juegos</h1>
+        <p class="lead mt-3 text-light" style="text-shadow: 0 2px 5px rgba(0,0,0,0.5);">Jugador Activo: <strong>{{ user.username }}</strong></p>
+        <div id="socketStatus" class="badge bg-warning text-dark mt-2 p-2 shadow">Conectando al servidor...</div>
 
-            <hr class="border-secondary my-4">
+        <hr class="border-secondary my-4" style="opacity: 0.3;">
 
-            <!-- Selector de Juegos -->
-            <div class="row mt-4 g-3 justify-content-center">
-                <!-- Juego 1: Gato -->
-                <div class="col-md-4">
-                    <div class="glass-panel p-4 game-card h-100">
-                        <i class="bi bi-grid-3x3 fs-1 text-primary mb-3 d-block"></i>
-                        <h4 class="text-white fw-bold">Gato</h4>
-                        <p class="text-muted small">Tic Tac Toe clásico</p>
-                        <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('gato')">
-                            <i class="bi bi-people"></i> Jugar Local
-                        </button>
-                        <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('gato', true)">
-                            <i class="bi bi-robot"></i> Jugar vs PC
-                        </button>
-                        <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('gato')">
-                            <i class="bi bi-globe"></i> Buscar Partida Online
-                        </button>
-                    </div>
+        <!-- Selector de Juegos -->
+        <div class="row mt-4 g-4 justify-content-center">
+            <!-- Juego 1: Gato -->
+            <div class="col-md-4">
+                <div class="glass-panel p-4 game-card h-100">
+                    <i class="bi bi-grid-3x3 fs-1 text-primary mb-3 d-block"></i>
+                    <h4 class="text-white fw-bold">Gato</h4>
+                    <p class="text-muted small">Tic Tac Toe clásico</p>
+                    <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('gato')">
+                        <i class="bi bi-people"></i> Jugar Local
+                    </button>
+                    <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('gato', true)">
+                        <i class="bi bi-robot"></i> Jugar vs PC
+                    </button>
+                    <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('gato')">
+                        <i class="bi bi-globe"></i> Buscar Partida Online
+                    </button>
                 </div>
+            </div>
 
-                <!-- Juego 2: 4 en Línea -->
-                <div class="col-md-4">
-                    <div class="glass-panel p-4 game-card h-100">
-                        <i class="bi bi-ui-radios-grid fs-1 text-primary mb-3 d-block"></i>
-                        <h4 class="text-white fw-bold">4 en Línea</h4>
-                        <p class="text-muted small">Conecta 4 fichas</p>
-                        <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('4linea')">
-                            <i class="bi bi-people"></i> Jugar Local
-                        </button>
-                        <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('4linea', true)">
-                            <i class="bi bi-robot"></i> Jugar vs PC
-                        </button>
-                        <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('4linea')">
-                            <i class="bi bi-globe"></i> Buscar Partida Online
-                        </button>
-                    </div>
+            <!-- Juego 2: 4 en Línea -->
+            <div class="col-md-4">
+                <div class="glass-panel p-4 game-card h-100">
+                    <i class="bi bi-ui-radios-grid fs-1 text-primary mb-3 d-block"></i>
+                    <h4 class="text-white fw-bold">4 en Línea</h4>
+                    <p class="text-muted small">Conecta 4 fichas</p>
+                    <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('4linea')">
+                        <i class="bi bi-people"></i> Jugar Local
+                    </button>
+                    <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('4linea', true)">
+                        <i class="bi bi-robot"></i> Jugar vs PC
+                    </button>
+                    <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('4linea')">
+                        <i class="bi bi-globe"></i> Buscar Partida Online
+                    </button>
                 </div>
+            </div>
 
-                <!-- Juego 3: Damas -->
-                <div class="col-md-4">
-                    <div class="glass-panel p-4 game-card h-100">
-                        <i class="bi bi-ui-checks-grid fs-1 text-primary mb-3 d-block"></i>
-                        <h4 class="text-white fw-bold">Damas</h4>
-                        <p class="text-muted small">Juego de mesa clásico</p>
-                        <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('damas')">
-                            <i class="bi bi-people"></i> Jugar Local
-                        </button>
-                        <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('damas', true)">
-                            <i class="bi bi-robot"></i> Jugar vs PC
-                        </button>
-                        <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('damas')">
-                            <i class="bi bi-globe"></i> Buscar Partida Online
-                        </button>
-                    </div>
+            <!-- Juego 3: Damas -->
+            <div class="col-md-4">
+                <div class="glass-panel p-4 game-card h-100">
+                    <i class="bi bi-ui-checks-grid fs-1 text-primary mb-3 d-block"></i>
+                    <h4 class="text-white fw-bold">Damas</h4>
+                    <p class="text-muted small">Juego de mesa clásico</p>
+                    <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('damas')">
+                        <i class="bi bi-people"></i> Jugar Local
+                    </button>
+                    <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('damas', true)">
+                        <i class="bi bi-robot"></i> Jugar vs PC
+                    </button>
+                    <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('damas')">
+                        <i class="bi bi-globe"></i> Buscar Partida Online
+                    </button>
                 </div>
+            </div>
 
-                <!-- Juego 4: Reversi -->
-                <div class="col-md-4">
-                    <div class="glass-panel p-4 game-card h-100">
-                        <i class="bi bi-yin-yang fs-1 text-light mb-3 d-block"></i>
-                        <h4 class="text-white fw-bold">Reversi</h4>
-                        <p class="text-muted small">Voltea a tu oponente</p>
-                        <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('reversi')">
-                            <i class="bi bi-people"></i> Jugar Local
-                        </button>
-                        <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('reversi', true)">
-                            <i class="bi bi-robot"></i> Jugar vs PC
-                        </button>
-                        <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('reversi')">
-                            <i class="bi bi-globe"></i> Buscar Partida Online
-                        </button>
-                    </div>
+            <!-- Juego 4: Reversi -->
+            <div class="col-md-4">
+                <div class="glass-panel p-4 game-card h-100">
+                    <i class="bi bi-yin-yang fs-1 text-light mb-3 d-block"></i>
+                    <h4 class="text-white fw-bold">Reversi</h4>
+                    <p class="text-muted small">Voltea a tu oponente</p>
+                    <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('reversi')">
+                        <i class="bi bi-people"></i> Jugar Local
+                    </button>
+                    <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('reversi', true)">
+                        <i class="bi bi-robot"></i> Jugar vs PC
+                    </button>
+                    <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('reversi')">
+                        <i class="bi bi-globe"></i> Buscar Partida Online
+                    </button>
                 </div>
+            </div>
 
-                <!-- Juego 5: Gomoku -->
-                <div class="col-md-4">
-                    <div class="glass-panel p-4 game-card h-100">
-                        <i class="bi bi-pentagon-half fs-1 text-warning mb-3 d-block"></i>
-                        <h4 class="text-white fw-bold">Gomoku</h4>
-                        <p class="text-muted small">5 en línea libre</p>
-                        <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('gomoku')">
-                            <i class="bi bi-people"></i> Jugar Local
-                        </button>
-                        <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('gomoku', true)">
-                            <i class="bi bi-robot"></i> Jugar vs PC
-                        </button>
-                        <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('gomoku')">
-                            <i class="bi bi-globe"></i> Buscar Partida Online
-                        </button>
-                    </div>
+            <!-- Juego 5: Gomoku (Oculto a petición) -->
+            <div class="col-md-4 d-none">
+                <div class="glass-panel p-4 game-card h-100">
+                    <i class="bi bi-pentagon-half fs-1 text-warning mb-3 d-block"></i>
+                    <h4 class="text-white fw-bold">Gomoku</h4>
+                    <p class="text-muted small">5 en línea libre</p>
+                    <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('gomoku')">
+                        <i class="bi bi-people"></i> Jugar Local
+                    </button>
+                    <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('gomoku', true)">
+                        <i class="bi bi-robot"></i> Jugar vs PC
+                    </button>
+                    <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('gomoku')">
+                        <i class="bi bi-globe"></i> Buscar Partida Online
+                    </button>
                 </div>
             </div>
         </div>
@@ -161,7 +160,7 @@
 <script>
     socket.on('connect', function() {
         const statusBadge = document.getElementById('socketStatus');
-        statusBadge.className = 'badge bg-success mt-2 p-2';
+        statusBadge.className = 'badge bg-success mt-2 p-2 shadow';
         statusBadge.innerHTML = '<i class="bi bi-wifi"></i> Conectado al Servidor (En línea)';
     });
 

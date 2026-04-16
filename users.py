@@ -6,6 +6,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from models import User
 from extensions import db, bcrypt, socketio
 import json
+from jinja2 import TemplateNotFound # <-- NUEVO: Para manejar errores si falta el archivo HTML
 
 users_bp = Blueprint('users', __name__)
 
@@ -15,11 +16,10 @@ def login():
         return redirect(url_for('games.dashboard'))
 
     if request.method == 'POST':
-        # Cambiamos 'email' por 'identificador' porque el HTML envía name="username"
+        # Permitimos iniciar sesión con username o email
         identifier = request.form.get('username')
         password = request.form.get('password')
         
-        # Permitimos iniciar sesión con el Nombre de Usuario O con el Email
         user = User.query.filter((User.username == identifier) | (User.email == identifier)).first()
         
         # Validación de usuario y contraseña Bcrypt
@@ -32,7 +32,6 @@ def login():
             
             return redirect(url_for('games.dashboard'))
             
-        # Utilizamos flash en lugar de pasar la variable error directamente
         flash('Usuario o contraseña incorrectos', 'danger')
         return redirect(url_for('users.login'))
 
@@ -100,3 +99,49 @@ def logout():
     socketio.emit('server_message', {'msg': f'👋 {username} se ha desconectado.'})
     
     return redirect(url_for('users.login'))
+
+# ==========================================
+# RUTAS DE PERFIL Y CAMBIO DE CONTRASEÑA
+# ==========================================
+
+@users_bp.route('/profile')
+@login_required
+def profile():
+    """Ruta para cargar la vista del perfil del usuario."""
+    try:
+        # Intentamos cargar la plantilla
+        return render_template('profile.html', user=current_user)
+    except TemplateNotFound:
+        # Si profile.html no existe en la carpeta templates, evitamos el pantallazo de error
+        flash("⚠️ Error: No se encontró el archivo 'profile.html' en la carpeta 'templates'. ¡Asegúrate de haberlo guardado correctamente!", "danger")
+        return redirect(url_for('games.dashboard'))
+
+@users_bp.route('/change_password', methods=['POST'])
+@login_required
+def change_password():
+    """Ruta para procesar el cambio de contraseña desde el perfil."""
+    data = request.json
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+
+    # Validar que la contraseña actual ingresada coincida con la de la BD
+    if not bcrypt.check_password_hash(current_user.password_hash, current_password):
+        return jsonify({'success': False, 'message': 'La contraseña actual es incorrecta.'})
+
+    # Hashear la nueva contraseña y actualizar la BD
+    hashed_pw = bcrypt.generate_password_hash(new_password).decode('utf-8')
+    current_user.password_hash = hashed_pw
+    db.session.commit()
+
+    # Retornar los datos actualizados para forzar la descarga de una nueva llave JSON
+    key_data = {
+        "email": current_user.email,
+        "pin": current_user.pin,
+        "key": hashed_pw
+    }
+    
+    return jsonify({
+        'success': True, 
+        'key_data': key_data, 
+        'message': 'Contraseña actualizada exitosamente.'
+    })

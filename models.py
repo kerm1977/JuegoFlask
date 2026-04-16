@@ -3,7 +3,7 @@
 
 from extensions import db
 from flask_login import UserMixin
-from datetime import datetime # ¡No olvides importar esto!
+from datetime import datetime
 
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
@@ -13,6 +13,10 @@ class User(db.Model, UserMixin):
     pin = db.Column(db.String(20), nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     is_superuser = db.Column(db.Boolean, default=False)
+    
+    # --- NUEVO: Campo para la imagen de perfil ---
+    # Guardaremos el nombre del archivo. Por defecto será 'default.png'
+    avatar = db.Column(db.String(255), default='default.png')
 
 class Game(db.Model):
     __tablename__ = 'games'
@@ -20,7 +24,7 @@ class Game(db.Model):
     name = db.Column(db.String(150), nullable=False)
     status = db.Column(db.String(50), default="waiting")
 
-# --- NUEVA TABLA DE ESTADÍSTICAS ---
+# --- TABLA DE ESTADÍSTICAS ---
 class Historial(db.Model):
     __tablename__ = 'historial'
     id = db.Column(db.Integer, primary_key=True)
@@ -29,5 +33,3 @@ class Historial(db.Model):
     juego = db.Column(db.String(50), nullable=False)
     resultado = db.Column(db.String(20), nullable=False) # 'Victoria', 'Derrota', 'Empate'
     fecha = db.Column(db.DateTime, default=datetime.utcnow)
-
-    jugador = db.relationship('User', backref=db.backref('historial', lazy=True))
