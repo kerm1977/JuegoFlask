@@ -1,0 +1,67 @@
+<!-- Nombre: login.html -->
+<!-- Ubicación: templates/ -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="glass-panel p-5">
+            <h3 class="text-center mb-4"><i class="bi bi-controller"></i> Acceso a Juegos</h3>
+            
+            {% if error %}
+                <div class="alert alert-danger glass-alert">{{ error }}</div>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('users.login') }}">
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <div class="input-group">
+                        <span class="input-group-text glass-input-group"><i class="bi bi-envelope"></i></span>
+                        <input type="email" class="form-control glass-input" name="email" required>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Contraseña</label>
+                    <div class="input-group">
+                        <span class="input-group-text glass-input-group"><i class="bi bi-lock"></i></span>
+                        <input type="password" class="form-control glass-input" name="password" id="loginPassword" required>
+                        <button class="btn btn-outline-light glass-btn" type="button" onclick="togglePassword('loginPassword', 'loginEye')">
+                            <i class="bi bi-eye" id="loginEye"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100 glass-btn-primary mb-3">Entrar</button>
+                
+                <div class="text-center">
+                    <a href="#" class="text-light text-decoration-none" data-bs-toggle="modal" data-bs-target="#recoverModal">
+                        ¿Olvidé mi contraseña o recordar sesión?
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Recuperar Sesión -->
+<div class="modal fade" id="recoverModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-modal">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-key"></i> Recuperar Cuenta</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Por favor, sube tu llave de seguridad (archivo JSON) para restaurar tu acceso.</p>
+                <input type="file" id="keyFileInput" accept=".json" class="form-control glass-input mb-3">
+                <div id="recoverError" class="text-danger mt-2" style="display:none;"></div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary glass-btn" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success glass-btn-success" onclick="processRecoverKey()">Validar Llave</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

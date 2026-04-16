@@ -1,0 +1,170 @@
+/* Nombre: style.css */
+/* Ubicación: static/css/ */
+
+/* Fondos dinámicos simulando un ambiente de juegos */
+body {
+    background: radial-gradient(circle at 15% 50%, rgba(20, 10, 40, 1), rgba(0, 0, 0, 1)), 
+                url('https://www.transparenttextures.com/patterns/stardust.png');
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Efecto principal Glassmorphism */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    color: #fff;
+}
+
+.glass-navbar {
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* =========================================
+   BARRA INFERIOR MÓVIL
+   ========================================= */
+.mobile-bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 70px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: none;
+    z-index: 1030;
+}
+
+.mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    font-size: 0.8rem;
+    transition: color 0.3s, transform 0.2s;
+}
+
+.mobile-nav-item i {
+    font-size: 1.5rem;
+    margin-bottom: 2px;
+}
+
+.mobile-nav-item:hover, .mobile-nav-item:active {
+    color: #0dcaf0;
+    transform: scale(1.1);
+}
+
+/* Lista de Jugadores UI */
+.player-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    transition: background 0.2s;
+}
+.player-list-item:hover {
+    background: rgba(255,255,255,0.05);
+}
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+.status-online { background-color: #28a745; box-shadow: 0 0 8px #28a745; }
+.status-offline { background-color: #6c757d; }
+
+/* =========================================
+   OVERLAY DE NOTIFICACIÓN DE RETO
+   ========================================= */
+.reto-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.reto-box {
+    max-width: 90%;
+    width: 500px;
+    border: 2px solid rgba(13, 202, 240, 0.5);
+    box-shadow: 0 0 30px rgba(13, 202, 240, 0.3);
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes heartbeat {
+    0% { transform: scale(1); }
+    25% { transform: scale(1.2); }
+    50% { transform: scale(1); }
+    75% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+.heartbeat { animation: heartbeat 1.5s infinite; display: inline-block; }
+
+
+/* Controles de Formulario Glass */
+.glass-input { background: rgba(255, 255, 255, 0.1) !important; border: 1px solid rgba(255, 255, 255, 0.2) !important; color: white !important; }
+.glass-input:focus { background: rgba(255, 255, 255, 0.15) !important; box-shadow: 0 0 10px rgba(0, 200, 255, 0.5) !important; }
+.glass-input::placeholder { color: rgba(255, 255, 255, 0.6); }
+
+/* Botones y Alertas */
+.glass-btn { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: white; }
+.glass-btn:hover { background: rgba(255, 255, 255, 0.2); color: white; }
+.glass-btn-primary { background: rgba(13, 110, 253, 0.3); border: 1px solid rgba(13, 110, 253, 0.5); backdrop-filter: blur(5px); }
+.glass-btn-primary:hover { background: rgba(13, 110, 253, 0.5); }
+.glass-btn-success { background: rgba(25, 135, 84, 0.3); border: 1px solid rgba(25, 135, 84, 0.5); }
+.glass-btn-success:hover { background: rgba(25, 135, 84, 0.5); }
+
+/* Modales */
+.glass-modal { background: rgba(30, 30, 40, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); color: white; }
+
+/* Animaciones de Tarjetas */
+.game-card { transition: transform 0.3s ease, box-shadow 0.3s ease; cursor: pointer; }
+.game-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0, 150, 255, 0.3); }
+
+/* Estética de Tableros */
+.game-board { display: grid; gap: 6px; margin: 20px auto; max-width: 100%; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.03); box-shadow: inset 0 0 20px rgba(0,0,0,0.9); }
+.cell { background: rgba(255,255,255,0.85); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; font-weight: bold; cursor: pointer; user-select: none; transition: transform 0.1s, background 0.3s; }
+.cell:active { transform: scale(0.92); }
+
+/* Gato */
+.grid-3x3 { grid-template-columns: repeat(3, 1fr); aspect-ratio: 1; max-width: 340px; margin: 0 auto; gap: 10px; }
+.grid-3x3 .cell { aspect-ratio: 1; line-height: 1; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; font-size: 4.5rem; text-shadow: 0 4px 15px rgba(0,0,0,0.8); box-shadow: inset 0 4px 10px rgba(0,0,0,0.6); }
+.grid-3x3 .cell:hover { background: rgba(255, 255, 255, 0.08); }
+
+/* 4 en Línea */
+.grid-7x6 { grid-template-columns: repeat(7, 1fr); aspect-ratio: 7/6; max-width: 450px; margin: 0 auto; }
+.c4-cell { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; width: 100%; height: 100%; box-shadow: inset 0 0 15px rgba(0,0,0,0.8); transition: background 0.3s, box-shadow 0.3s; }
+.c4-p1 { background: #ff0055; box-shadow: inset -3px -3px 10px rgba(0,0,0,0.6), 0 0 15px #ff0055; border-color: #ff0055; } 
+.c4-p2 { background: #0dcaf0; box-shadow: inset -3px -3px 10px rgba(0,0,0,0.6), 0 0 15px #0dcaf0; border-color: #0dcaf0; }
+.cell.bg-primary { background: rgba(255,255,255,0.02) !important; border: 1px solid rgba(255,255,255,0.05); }
+
+/* Damas */
+.grid-8x8 { grid-template-columns: repeat(8, 1fr); aspect-ratio: 1; max-width: 450px; margin: 0 auto; gap: 0 !important; padding: 4px !important; }
+.grid-8x8 .cell { aspect-ratio: 1; border-radius: 0; position: relative; }
+.chk-dark { background: #4a2f1d; } 
+.chk-light { background: #d2b48c; } 
+.chk-piece { border-radius: 50%; width: 80%; height: 80%; box-shadow: 3px 3px 12px rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; transition: transform 0.2s; z-index: 2; }
+.chk-p1 { background: linear-gradient(145deg, #ff4444, #cc0000); border: 2px solid #ff9999; color: white; } 
+.chk-p2 { background: linear-gradient(145deg, #333333, #000000); border: 2px solid #666; color: white; }
+.valid-move::after { content: ''; position: absolute; width: 25%; height: 25%; background: rgba(46, 213, 115, 0.8); border-radius: 50%; box-shadow: 0 0 15px #2ed573; pointer-events: none; z-index: 1; }

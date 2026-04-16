@@ -1,0 +1,116 @@
+<!-- Nombre: dashboard.html -->
+<!-- Ubicación: templates/ -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row" id="lobby-view">
+    <div class="col-12">
+        <div class="glass-panel p-5 text-center">
+            <h1><i class="bi bi-joystick text-info"></i> Bienvenido a la Sala de Juegos</h1>
+            <p class="lead mt-3">Jugador Activo: <strong>{{ user.username }}</strong></p>
+            <div id="socketStatus" class="badge bg-warning text-dark mt-2 p-2">Conectando al servidor...</div>
+
+            <hr class="border-secondary my-4">
+
+            <!-- Selector de Juegos -->
+            <div class="row mt-4 g-3 justify-content-center">
+                <!-- Juego 1: Gato -->
+                <div class="col-md-4">
+                    <div class="glass-panel p-4 game-card h-100">
+                        <i class="bi bi-grid-3x3 fs-1 text-primary mb-3 d-block"></i>
+                        <h4 class="text-white fw-bold">Gato</h4>
+                        <p class="text-muted small">Tic Tac Toe clásico</p>
+                        <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('gato')">
+                            <i class="bi bi-people"></i> Jugar Local
+                        </button>
+                        <button class="btn btn-info w-100 fw-bold" onclick="socket.emit('find_match', {game_type: 'gato'})">
+                            <i class="bi bi-globe"></i> Buscar Partida Online
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Juego 2: 4 en Línea -->
+                <div class="col-md-4">
+                    <div class="glass-panel p-4 game-card h-100">
+                        <i class="bi bi-ui-radios-grid fs-1 text-primary mb-3 d-block"></i>
+                        <h4 class="text-white fw-bold">4 en Línea</h4>
+                        <p class="text-muted small">Conecta 4 fichas</p>
+                        <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('4linea')">
+                            <i class="bi bi-people"></i> Jugar Local
+                        </button>
+                        <button class="btn btn-info w-100 fw-bold" onclick="socket.emit('find_match', {game_type: '4linea'})">
+                            <i class="bi bi-globe"></i> Buscar Partida Online
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Juego 3: Damas -->
+                <div class="col-md-4">
+                    <div class="glass-panel p-4 game-card h-100">
+                        <i class="bi bi-ui-checks-grid fs-1 text-primary mb-3 d-block"></i>
+                        <h4 class="text-white fw-bold">Damas</h4>
+                        <p class="text-muted small">Juego de mesa clásico</p>
+                        <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('damas')">
+                            <i class="bi bi-people"></i> Jugar Local
+                        </button>
+                        <button class="btn btn-info w-100 fw-bold" onclick="socket.emit('find_match', {game_type: 'damas'})">
+                            <i class="bi bi-globe"></i> Buscar Partida Online
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- VISTA: TABLERO ACTIVO -->
+<div class="row" id="game-view" style="display: none;">
+    <div class="col-12">
+        <div id="partida-wrapper" class="w-100 mx-auto" style="max-width: 500px;">
+            <div class="d-flex justify-content-between align-items-center mb-3 mt-4">
+                <h4 id="gameTitle" class="m-0 fw-bold text-info" style="text-shadow: 0 0 10px rgba(13,202,240,0.5);">Juego</h4>
+                <button class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="confirmSurrender()">Abandonar</button>
+            </div>
+
+            <div class="text-center mb-3 glass-panel py-2 px-3 mx-auto" style="width: fit-content; min-width: 200px;">
+                <strong id="turnIndicator" style="font-size: 1.1rem; letter-spacing: 1px;">Tu turno</strong>
+            </div>
+
+            <div id="gameBoard" class="game-board glass-panel mb-5"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Fin de Juego -->
+<div class="modal fade" id="gameOverModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-modal text-center">
+            <div class="modal-header border-bottom-0 justify-content-center pb-0" id="goHeader">
+                <h5 class="modal-title fw-bold text-uppercase mt-4" id="goTitle">Fin de la Partida</h5>
+            </div>
+            <div class="modal-body py-4">
+                <h2 id="goMessage" class="fw-bold mb-2">¡Juego Terminado!</h2>
+            </div>
+            <div class="modal-footer border-top-0 justify-content-center pb-4">
+                <button type="button" class="btn btn-info rounded-pill px-5 fw-bold text-dark shadow" onclick="closeGameOver()">Ir al Menú</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Se elimina la declaración "const socket = io();" ya que se inicializa globalmente en main.js
+    
+    socket.on('connect', function() {
+        const statusBadge = document.getElementById('socketStatus');
+        statusBadge.className = 'badge bg-success mt-2 p-2';
+        statusBadge.innerHTML = '<i class="bi bi-wifi"></i> Conectado al Servidor (En línea)';
+    });
+
+    socket.on('server_message', function(data) {
+        console.log("Servidor:", data.msg);
+    });
+</script>
+{% endblock %}

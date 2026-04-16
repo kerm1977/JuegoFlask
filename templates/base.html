@@ -1,0 +1,163 @@
+<!-- Nombre: base.html -->
+<!-- Ubicación: templates/ -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juegos - Multijugador</title>
+     <!-- Custom CSS (Glassmorphism) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body class="bg-dark text-light pb-5"> <!-- pb-5 para dar espacio a la barra móvil -->
+    
+    <!-- Navbar Glassmorphic (Escritorio) -->
+    <nav class="navbar navbar-expand-lg navbar-dark glass-navbar sticky-top mb-4 d-none d-md-flex">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="{{ url_for('games.dashboard') }}">🎮 LA TRIBU</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item me-3">
+                        <button class="btn btn-sm btn-outline-light rounded-pill" onclick="solicitarListaJugadores()">
+                            <i class="bi bi-people-fill"></i> Jugadores
+                        </button>
+                    </li>
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item">
+                            <span class="nav-link text-info"><i class="bi bi-person-circle"></i> {{ current_user.username }}</span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-danger" href="{{ url_for('users.logout') }}">Cerrar Sesión</a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('users.login') }}">Iniciar Sesión</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('users.register') }}">Crear Cuenta</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container main-content">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- ========================================== -->
+    <!-- BARRA DE NAVEGACIÓN INFERIOR (MÓVIL)       -->
+    <!-- ========================================== -->
+    <div class="mobile-bottom-bar d-md-none glass-navbar">
+        <a href="{{ url_for('games.dashboard') }}" class="mobile-nav-item">
+            <i class="bi bi-joystick"></i>
+            <span>Juegos</span>
+        </a>
+        <a href="#" class="mobile-nav-item text-warning" onclick="solicitarListaJugadores()">
+            <i class="bi bi-people-fill"></i>
+            <span>Jugadores</span>
+        </a>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('users.logout') }}" class="mobile-nav-item text-danger">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Salir</span>
+        </a>
+        {% else %}
+        <a href="{{ url_for('users.login') }}" class="mobile-nav-item text-info">
+            <i class="bi bi-person-check-fill"></i>
+            <span>Entrar</span>
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: LISTA DE JUGADORES                  -->
+    <!-- ========================================== -->
+    <div class="modal fade" id="playersModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content glass-modal">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title"><i class="bi bi-people"></i> Todos los Jugadores</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="playersListContainer">
+                    <div class="text-center text-muted"><div class="spinner-border spinner-border-sm"></div> Cargando jugadores...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Auxiliar: Elegir Juego para el Reto -->
+    <div class="modal fade" id="selectGameModal" tabindex="-1">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content glass-modal text-center">
+                <div class="modal-header border-0 justify-content-center">
+                    <h6 class="modal-title text-info">¿A qué quieres jugar?</h6>
+                </div>
+                <div class="modal-body d-grid gap-2">
+                    <button class="btn btn-outline-light glass-btn" onclick="enviarReto('gato')">Gato</button>
+                    <button class="btn btn-outline-light glass-btn" onclick="enviarReto('4linea')">4 en Línea</button>
+                    <button class="btn btn-outline-light glass-btn" onclick="enviarReto('damas')">Damas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- OVERLAY GIGANTE: RECIBIR UN RETO           -->
+    <!-- ========================================== -->
+    <div id="retoOverlay" class="reto-overlay" style="display: none;">
+        <div class="reto-box glass-panel text-center p-4 p-md-5">
+            <h1 class="text-warning display-1 mb-3"><i class="bi bi-exclamation-triangle-fill heartbeat"></i></h1>
+            <h2 class="text-white fw-bold mb-2">¡TE HAN RETADO!</h2>
+            <h4 class="text-info mb-4" id="retadorNombre">Usuario quiere jugar...</h4>
+            <p class="lead mb-5">¿Estás listo para aceptar el desafío?</p>
+            
+            <div class="d-flex flex-column flex-sm-row justify-content-center gap-3">
+                <button class="btn btn-success btn-lg rounded-pill px-5 fw-bold shadow" onclick="responderReto(true)">
+                    <i class="bi bi-check-circle-fill"></i> ACEPTAR
+                </button>
+                <button class="btn btn-danger btn-lg rounded-pill px-5 fw-bold shadow" onclick="confirmarRechazo()">
+                    <i class="bi bi-x-circle-fill"></i> RECHAZAR
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Confirmar Rechazo -->
+    <div class="modal fade" id="rechazarModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content glass-modal border-danger text-center">
+                <div class="modal-body py-5">
+                    <i class="bi bi-shield-x text-danger display-4 mb-3 d-block"></i>
+                    <h4 class="fw-bold">¿Estás seguro de rechazar el juego?</h4>
+                    <p class="text-muted">El jugador será notificado de tu cobard... digo, de tu decisión. 😉</p>
+                    <div class="mt-4">
+                        <button class="btn btn-outline-light me-2" onclick="cancelarRechazo()">No, me arrepentí</button>
+                        <button class="btn btn-danger px-4" onclick="responderReto(false)">Sí, rechazar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Socket.IO JS -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <!-- Asegurarse de que el usuario está disponible en JS -->
+    <script>
+        window.CURRENT_USERNAME = "{{ current_user.username if current_user.is_authenticated else '' }}";
+    </script>
+    
+    <!-- Custom JS (Con versión para forzar recarga y limpiar caché) -->
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=1.1"></script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

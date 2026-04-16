@@ -1,0 +1,78 @@
+<!-- Nombre: register.html -->
+<!-- Ubicación: templates/ -->
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="glass-panel p-5">
+            <h3 class="text-center mb-4"><i class="bi bi-person-plus"></i> Crear Cuenta</h3>
+            
+            <div id="registerError" class="alert alert-danger glass-alert" style="display:none;"></div>
+
+            <form id="registerForm">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Nombre / Usuario</label>
+                        <input type="text" class="form-control glass-input" id="regUsername" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control glass-input" id="regEmail" required>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Pin de Seguridad (4 dígitos)</label>
+                    <input type="text" class="form-control glass-input" id="regPin" maxlength="4" pattern="\d{4}" required>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Contraseña (Bcrypt)</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control glass-input" id="regPassword" required>
+                            <button class="btn btn-outline-light glass-btn" type="button" onclick="togglePassword('regPassword', 'regEye1')">
+                                <i class="bi bi-eye" id="regEye1"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Confirmar Password</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control glass-input" id="regConfirm" required>
+                            <button class="btn btn-outline-light glass-btn" type="button" onclick="togglePassword('regConfirm', 'regEye2')">
+                                <i class="bi bi-eye" id="regEye2"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100 glass-btn-primary mt-3">Registrarse y Generar Llave</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Llave Descargada -->
+<div class="modal fade" id="keyDownloadedModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-modal">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-warning"><i class="bi bi-exclamation-triangle-fill"></i> ¡ATENCIÓN! ESTA ES TU LLAVE</h5>
+            </div>
+            <div class="modal-body text-center">
+                <i class="bi bi-file-earmark-lock text-success" style="font-size: 3rem;"></i>
+                <p class="mt-3">
+                    Se acaba de descargar un archivo <strong>JSON</strong> en tu dispositivo. <br><br>
+                    Si pierdes u olvidas el acceso a tu cuenta, <strong>NO LA PIERDAS NI LA COMPARTAS CON NADIE</strong>. <br>
+                    Este archivo contiene tu contraseña fuertemente encriptada y es la única forma de restaurar tu acceso.
+                </p>
+            </div>
+            <div class="modal-footer border-secondary justify-content-center">
+                <button type="button" class="btn btn-success glass-btn-success" onclick="window.location.href='{{ url_for('users.login') }}'">Entendido, Ir al Login</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
