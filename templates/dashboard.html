@@ -205,6 +205,32 @@
         </div>
     </div>
 </div>
+
+<!-- ========================================== -->
+<!-- MODAL ABANDONAR PARTIDA                    -->
+<!-- ========================================== -->
+<div class="modal fade" id="surrenderModal" tabindex="-1" data-bs-backdrop="static" style="backdrop-filter: blur(5px);">
+    <div class="modal-dialog modal-dialog-centered">
+        <!-- Cristal rojizo para dar sensación de advertencia -->
+        <div class="modal-content glass-modal border-danger text-center shadow-lg" style="background: rgba(40, 10, 10, 0.85); backdrop-filter: blur(12px);">
+            <div class="modal-header border-secondary justify-content-center">
+                <h5 class="modal-title text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill"></i> Abandonar Partida</h5>
+            </div>
+            <div class="modal-body py-4">
+                <i class="bi bi-door-open text-danger display-1 mb-3 d-block heartbeat"></i>
+                <h4 class="text-white fw-bold">¿Estás seguro?</h4>
+                <!-- MODIFICADO: Cambiado de text-muted a text-light para mayor legibilidad -->
+                <p class="text-light">Si abandonas ahora, la partida se cerrará y perderás tu progreso actual.</p>
+            </div>
+            <div class="modal-footer border-secondary justify-content-center gap-3">
+                <button type="button" class="btn btn-outline-light rounded-pill px-4" data-bs-dismiss="modal">No, continuar</button>
+                <button type="button" class="btn btn-danger rounded-pill px-4 fw-bold shadow" onclick="executeSurrender()">
+                    <i class="bi bi-flag-fill"></i> Sí, abandonar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -339,6 +365,30 @@
     window.solicitarListaJugadores = () => {
         gameAwaiting = null; // Quita el filtro, muestra a todos (conectados y desconectados)
         if (originalSolicitar) originalSolicitar();
+    };
+
+    // ========================================================
+    // LÓGICA DE ABANDONO DE PARTIDA (Reemplaza alerta nativa)
+    // ========================================================
+    window.confirmSurrender = () => {
+        let surrenderModalEl = document.getElementById('surrenderModal');
+        let surrenderModalInst = bootstrap.Modal.getInstance(surrenderModalEl);
+        if (!surrenderModalInst) {
+            surrenderModalInst = new bootstrap.Modal(surrenderModalEl);
+        }
+        surrenderModalInst.show();
+    };
+
+    window.executeSurrender = () => {
+        let surrenderModalEl = document.getElementById('surrenderModal');
+        let surrenderModalInst = bootstrap.Modal.getInstance(surrenderModalEl);
+        if (surrenderModalInst) {
+            surrenderModalInst.hide();
+        }
+        // Llamamos a la función real de game.js para limpiar la partida
+        if (typeof closeGameOver === 'function') {
+            closeGameOver();
+        }
     };
 </script>
 {% endblock %}
