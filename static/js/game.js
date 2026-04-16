@@ -38,17 +38,97 @@ function getInitialState(type) {
     return {};
 }
 
+// ==========================================
+// [MÓDULO: UI] - MODAL DE DIFICULTAD DE LA PC
+// ==========================================
+let pendingGameTypeForPC = null;
+let difficultyModalInst = null;
+
+/**
+ * Inyecta y muestra un modal estilizado (Glassmorphism) para elegir el nivel de la IA.
+ * @param {string} gameType - El juego que se va a iniciar.
+ */
+function showDifficultyModal(gameType) {
+    pendingGameTypeForPC = gameType;
+    let modalEl = document.getElementById('difficultyModal');
+    
+    // Si no existe el modal en el HTML, lo creamos e inyectamos
+    if (!modalEl) {
+        const modalHtml = `
+        <div class="modal fade" id="difficultyModal" tabindex="-1" data-bs-backdrop="static">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content glass-modal border-info text-center shadow-lg" style="background: rgba(20, 20, 30, 0.95); backdrop-filter: blur(12px);">
+                    <div class="modal-header border-secondary justify-content-center">
+                        <h5 class="modal-title text-info fw-bold"><i class="bi bi-robot"></i> Elige el Nivel de la PC</h5>
+                    </div>
+                    <div class="modal-body py-4">
+                        <p class="text-light mb-4">¿Qué tan inteligente quieres que sea la Inteligencia Artificial?</p>
+                        <div class="d-grid gap-3">
+                            <button class="btn btn-outline-success btn-lg rounded-pill shadow-sm" onclick="selectDifficulty('facil')">
+                                <i class="bi bi-balloon"></i> Fácil <span class="d-block small text-white-50" style="font-size: 0.75rem;">Se equivoca mucho</span>
+                            </button>
+                            <button class="btn btn-outline-warning btn-lg rounded-pill shadow-sm" onclick="selectDifficulty('normal')">
+                                <i class="bi bi-person"></i> Normal <span class="d-block small text-white-50" style="font-size: 0.75rem;">Juega como un humano</span>
+                            </button>
+                            <button class="btn btn-outline-danger btn-lg rounded-pill shadow-sm" onclick="selectDifficulty('dificil')">
+                                <i class="bi bi-fire"></i> Difícil <span class="d-block small text-white-50" style="font-size: 0.75rem;">Juega a ganar sin piedad</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-secondary justify-content-center">
+                        <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modalEl = document.getElementById('difficultyModal');
+        difficultyModalInst = new bootstrap.Modal(modalEl);
+    }
+    difficultyModalInst.show();
+}
+
+/**
+ * Recibe la selección del botón del modal y arranca el juego.
+ * @param {string} diff - Dificultad seleccionada ('facil', 'normal', 'dificil').
+ */
+window.selectDifficulty = (diff) => {
+    if (difficultyModalInst) difficultyModalInst.hide();
+    if (pendingGameTypeForPC) {
+        startLocalGame(pendingGameTypeForPC, true, diff);
+        pendingGameTypeForPC = null; // Reiniciar la variable
+    }
+};
+
 /**
  * [MÓDULO: GAME_CORE]
  * Inicializa y configura la variable global currentGame para una partida local (Humano o vs PC).
  * Transiciona la vista del lobby al tablero.
  * @param {string} type - Tipo de juego.
  * @param {boolean} vsPC - Indica si la partida será contra la Inteligencia Artificial.
+ * @param {string} difficulty - Dificultad de la PC ('facil', 'normal', 'dificil'). Default: null.
  */
-window.startLocalGame = (type, vsPC = false) => {
+window.startLocalGame = (type, vsPC = false, difficulty = null) => {
+    
+    // Si es contra la PC y no se mandó dificultad por parámetro (porque venimos del lobby)
+    if (vsPC && difficulty === null) {
+        
+        // ¡Magia!: Si estamos apretando el botón de revancha, recordamos la dificultad anterior
+        if (window.currentGame && window.currentGame.vsPC && window.currentGame.difficulty) {
+            difficulty = window.currentGame.difficulty;
+        } else {
+            // Es una partida nueva, así que mostramos el modal bonito de Bootstrap
+            showDifficultyModal(type);
+            return; // Detenemos la ejecución aquí hasta que el jugador elija la dificultad
+        }
+    }
+
+    let finalDifficulty = difficulty || 'normal';
+
     window.currentGame = { 
         mode: 'local', 
         vsPC: vsPC, 
+        difficulty: finalDifficulty, // <-- GUARDAMOS LA DIFICULTAD
         gameType: type, 
         status: 'playing', 
         currentLocalTurn: 1, 
@@ -76,9 +156,11 @@ window.renderGameBoard = () => {
     const type = window.currentGame.gameType; 
     const state = window.currentGame.gameState;
     
-    // Nombres bonitos
+    // Nombres bonitos y Dificultad
     let gameName = type === 'gato' ? 'Gato' : (type === '4linea' ? '4 en Línea' : (type === 'damas' ? 'Damas' : (type === 'reversi' ? 'Reversi' : 'Gomoku')));
-    if(window.currentGame.mode === 'local' && window.currentGame.vsPC) gameName += " vs PC";
+    if(window.currentGame.mode === 'local' && window.currentGame.vsPC) {
+        gameName += ` vs PC (${window.currentGame.difficulty.toUpperCase()})`;
+    }
     document.getElementById('gameTitle').innerText = gameName;
     
     let isMyTurn, myPlayerNum, indicatorText, indicatorClass;
@@ -341,51 +423,66 @@ window.makePCMove = () => {
     let state = window.currentGame.gameState; 
     let pNum = 2; 
     let chosenIndex = -1;
+    let difficulty = window.currentGame.difficulty || 'normal';
+
+    // ==========================================
+    // SISTEMA DE DIFICULTAD (Probabilidad de Error)
+    // ==========================================
+    let probabilidadError = 0;
+    if (difficulty === 'facil') probabilidadError = 0.60; // 60% de hacer una jugada tonta
+    if (difficulty === 'normal') probabilidadError = 0.15; // 15% de hacer una jugada tonta (más humano)
+    if (difficulty === 'dificil') probabilidadError = 0.0; // 0% de error. Juega a ganar siempre.
+    
+    let cometerError = Math.random() < probabilidadError;
 
     if (type === 'gato') {
         let win = findWinningMoveGato(state.board, 2);
         let block = findWinningMoveGato(state.board, 1);
         
-        if (win !== -1) chosenIndex = win;
-        else if (block !== -1) chosenIndex = block;
-        else if (state.board[4] === 0) chosenIndex = 4; // Tomar el centro es la mejor estrategia
-        else {
-            let empty = [];
-            state.board.forEach((c, i) => { if(c === 0) empty.push(i); });
-            if(empty.length > 0) chosenIndex = empty[Math.floor(Math.random() * empty.length)];
+        let empty = [];
+        state.board.forEach((c, i) => { if(c === 0) empty.push(i); });
+        
+        // Si no comete error, busca ganar o bloquear primero
+        if (!cometerError && win !== -1) chosenIndex = win;
+        else if (!cometerError && block !== -1) chosenIndex = block;
+        else if (!cometerError && state.board[4] === 0) chosenIndex = 4; // Tomar el centro es la mejor estrategia
+        else if (empty.length > 0) {
+            // Jugada aleatoria
+            chosenIndex = empty[Math.floor(Math.random() * empty.length)];
         }
     } 
     else if (type === '4linea') {
         let bestCol = -1;
+        let validCols = [];
+        for(let c=0; c<7; c++) { if(state.board[c] === 0) validCols.push(c); }
         
-        // 1. ¿Puede la PC ganar en el siguiente turno?
-        for(let c=0; c<7; c++) {
-            let r = getC4DropRow(state.board, c);
-            if(r !== -1) {
-                let tempBoard = [...state.board]; tempBoard[r*7+c] = 2;
-                let res = checkC4Win(tempBoard);
-                if(res && res.p === 2) { bestCol = c; break; }
-            }
-        }
-        
-        // 2. ¿Necesita bloquear al jugador?
-        if(bestCol === -1) {
-            for(let c=0; c<7; c++) {
+        if (!cometerError) {
+            // 1. ¿Puede la PC ganar en el siguiente turno?
+            for(let c of validCols) {
                 let r = getC4DropRow(state.board, c);
                 if(r !== -1) {
-                    let tempBoard = [...state.board]; tempBoard[r*7+c] = 1;
+                    let tempBoard = [...state.board]; tempBoard[r*7+c] = 2;
                     let res = checkC4Win(tempBoard);
-                    if(res && res.p === 1) { bestCol = c; break; }
+                    if(res && res.p === 2) { bestCol = c; break; }
+                }
+            }
+            // 2. ¿Necesita bloquear al jugador?
+            if(bestCol === -1) {
+                for(let c of validCols) {
+                    let r = getC4DropRow(state.board, c);
+                    if(r !== -1) {
+                        let tempBoard = [...state.board]; tempBoard[r*7+c] = 1;
+                        let res = checkC4Win(tempBoard);
+                        if(res && res.p === 1) { bestCol = c; break; }
+                    }
                 }
             }
         }
         
         if(bestCol !== -1) {
             chosenIndex = bestCol; // El índice horizontal servirá
-        } else {
-            let validCols = [];
-            for(let c=0; c<7; c++) { if(state.board[c] === 0) validCols.push(c); }
-            if(validCols.length > 0) chosenIndex = validCols[Math.floor(Math.random() * validCols.length)];
+        } else if(validCols.length > 0) {
+            chosenIndex = validCols[Math.floor(Math.random() * validCols.length)];
         }
     } 
     else if (type === 'gomoku') {
@@ -411,19 +508,20 @@ window.makePCMove = () => {
         // Si el tablero está vacío, tomar el centro
         if(candidates.length === 0 && empty.length > 0) candidates.push(112); 
         
-        // 1. Buscar ganar
-        for(let i of candidates) {
-            let tempBoard = [...state.board]; tempBoard[i] = 2;
-            let res = checkGomokuWin(tempBoard); 
-            if(res && res.p === 2) { winIndex = i; break; }
-        }
-        
-        // 2. Buscar bloquear
-        if(winIndex === -1) {
+        if (!cometerError) {
+            // 1. Buscar ganar
             for(let i of candidates) {
-                let tempBoard = [...state.board]; tempBoard[i] = 1;
+                let tempBoard = [...state.board]; tempBoard[i] = 2;
                 let res = checkGomokuWin(tempBoard); 
-                if(res && res.p === 1) { blockIndex = i; break; }
+                if(res && res.p === 2) { winIndex = i; break; }
+            }
+            // 2. Buscar bloquear
+            if(winIndex === -1) {
+                for(let i of candidates) {
+                    let tempBoard = [...state.board]; tempBoard[i] = 1;
+                    let res = checkGomokuWin(tempBoard); 
+                    if(res && res.p === 1) { blockIndex = i; break; }
+                }
             }
         }
         
@@ -437,10 +535,11 @@ window.makePCMove = () => {
             if(getReversiFlips(state.board, i, pNum).length > 0) validMoves.push(i);
         }
         if(validMoves.length > 0) {
-            // IA Básica para Reversi: Priorizar las 4 esquinas si están disponibles
             const corners = [0, 7, 56, 63];
             let cornerFound = validMoves.find(m => corners.includes(m));
-            if(cornerFound !== undefined) {
+            
+            // Priorizar las esquinas si no está cometiendo errores
+            if(!cometerError && cornerFound !== undefined) {
                 chosenIndex = cornerFound;
             } else {
                 chosenIndex = validMoves[Math.floor(Math.random() * validMoves.length)];
@@ -477,7 +576,22 @@ window.makePCMove = () => {
             if(jumpsOnly.length > 0) possibleMoves = jumpsOnly;
 
             if(possibleMoves.length > 0) {
-                let move = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+                let move;
+                // IA Avanzada para Damas en Difícil: Prioriza moverse por las orillas (seguro) o avanzar hacia la coronación
+                if (!cometerError && !possibleMoves[0].isJump) {
+                    possibleMoves.sort((a, b) => {
+                        let rA = Math.floor(a.end / 8), cA = a.end % 8;
+                        let rB = Math.floor(b.end / 8), cB = b.end % 8;
+                        let scoreA = rA + (cA === 0 || cA === 7 ? 1 : 0); // Fila + punto extra por estar en el borde
+                        let scoreB = rB + (cB === 0 || cB === 7 ? 1 : 0);
+                        return scoreB - scoreA; // Ordena de mayor a menor puntaje
+                    });
+                    move = possibleMoves[0]; // Selecciona la mejor opción de avance
+                } else {
+                    // Selecciona un movimiento al azar
+                    move = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+                }
+                
                 attemptMove(move.start, pNum, true); // La PC selecciona la ficha visualmente
                 setTimeout(() => attemptMove(move.end, pNum, true), 500); // 500ms después hace el movimiento
                 return;
@@ -637,6 +751,25 @@ function attemptMove(index, myPlayerNum, isMyTurn) {
             let p1 = state.board.filter(p => p===1 || p===3).length; let p2 = state.board.filter(p => p===2 || p===4).length;
             if(p1 === 0) { winnerNum = 2; winningLine = state.board.map((c, i) => c === 2 || c === 4 ? i : -1).filter(i => i !== -1); }
             else if(p2 === 0) { winnerNum = 1; winningLine = state.board.map((c, i) => c === 1 || c === 3 ? i : -1).filter(i => i !== -1); }
+            else if (endTurn) {
+                // Verificar si el siguiente jugador tiene movimientos legales disponibles
+                let nextP = myPlayerNum === 1 ? 2 : 1;
+                let nextHasMoves = false;
+                for(let i=0; i<64; i++) {
+                    if (state.board[i] === nextP || state.board[i] === nextP + 2) {
+                        if (getValidCheckersMoves(state.board, i, nextP, true).length > 0 || 
+                            getValidCheckersMoves(state.board, i, nextP, false).length > 0) {
+                            nextHasMoves = true;
+                            break;
+                        }
+                    }
+                }
+                // Si el enemigo no tiene movimientos legales (está bloqueado), el jugador actual gana
+                if (!nextHasMoves) {
+                    winnerNum = myPlayerNum;
+                    winningLine = state.board.map((c, i) => c === myPlayerNum || c === myPlayerNum + 2 ? i : -1).filter(i => i !== -1);
+                }
+            }
         }
 
         if (window.currentGame.mode === 'local') {
@@ -650,8 +783,9 @@ function attemptMove(index, myPlayerNum, isMyTurn) {
             renderGameBoard();
 
             // Disparar movimiento de la PC si es su turno
-            if (window.currentGame.vsPC && window.currentGame.currentLocalTurn === 2 && window.currentGame.status === 'playing' && endTurn) {
-                setTimeout(makePCMove, 800); // Retardo de 800ms para que la PC "piense"
+            if (window.currentGame.vsPC && window.currentGame.currentLocalTurn === 2 && window.currentGame.status === 'playing') {
+                let delay = endTurn ? 800 : 500; // Si es salto consecutivo, lo hace un poco más rápido
+                setTimeout(makePCMove, delay);
             }
         } else if (window.currentGame.mode === 'multi') {
             socket.emit('make_move', { room: window.currentGame.roomId, gameState: state, winnerNum: winnerNum, endTurn: endTurn, winningLine: winningLine });
