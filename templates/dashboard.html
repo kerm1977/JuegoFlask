@@ -99,7 +99,7 @@
         <div id="partida-wrapper" class="w-100 mx-auto" style="max-width: 500px;">
             <div class="d-flex justify-content-between align-items-center mb-3 mt-4">
                 <h4 id="gameTitle" class="m-0 fw-bold text-info" style="text-shadow: 0 0 10px rgba(13,202,240,0.5);">Juego</h4>
-                <button class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="confirmSurrender()">Abandonar</button>
+                <button id="btnAbandonar" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="confirmSurrender()">Abandonar</button>
             </div>
 
             <div class="text-center mb-3 glass-panel py-2 px-3 mx-auto" style="width: fit-content; min-width: 200px;">
@@ -122,7 +122,8 @@
                 <h2 id="goMessage" class="fw-bold mb-2">¡Juego Terminado!</h2>
             </div>
             <div class="modal-footer border-top-0 justify-content-center pb-4">
-                <button type="button" class="btn btn-info rounded-pill px-5 fw-bold text-dark shadow" onclick="closeGameOver()">Ir al Menú</button>
+                <button type="button" class="btn btn-outline-light rounded-pill px-4 shadow" onclick="if(bsGameOverModal) bsGameOverModal.hide();">Ver Tablero</button>
+                <button type="button" class="btn btn-info rounded-pill px-4 fw-bold text-dark shadow" onclick="closeGameOver()">Ir al Menú</button>
             </div>
         </div>
     </div>

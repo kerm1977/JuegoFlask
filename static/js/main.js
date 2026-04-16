@@ -468,6 +468,20 @@ window.renderGameBoard = () => {
     let indicator = document.getElementById('turnIndicator');
     if(indicator) { indicator.innerText = indicatorText; indicator.className = indicatorClass; }
     
+    // Cambiar botón superior dependiendo si el juego terminó
+    let btnAbandonar = document.getElementById('btnAbandonar');
+    if(btnAbandonar) {
+        if(window.currentGame.status === 'finished') {
+            btnAbandonar.innerText = "Volver al Menú";
+            btnAbandonar.className = "btn btn-sm btn-success rounded-pill px-3 shadow";
+            btnAbandonar.onclick = closeGameOver;
+        } else {
+            btnAbandonar.innerText = "Abandonar";
+            btnAbandonar.className = "btn btn-sm btn-outline-danger rounded-pill px-3";
+            btnAbandonar.onclick = confirmSurrender;
+        }
+    }
+
     boardDiv.innerHTML = '';
     
     // Estilos de tablero
@@ -482,6 +496,7 @@ window.renderGameBoard = () => {
         state.board.forEach((cell, i) => {
             let d = document.createElement('div'); d.className = 'cell shadow-sm'; d.innerText = cell === 1 ? 'X' : cell === 2 ? 'O' : '';
             if(cell === 1) d.style.color = '#ff0055'; if(cell === 2) d.style.color = '#0dcaf0';
+            if(window.currentGame.status === 'finished' && window.currentGame.winningLine && window.currentGame.winningLine.includes(i)) d.classList.add('winning-piece');
             d.onclick = () => attemptMove(i, myPlayerNum, isMyTurn); boardDiv.appendChild(d);
         });
     } 
@@ -490,6 +505,7 @@ window.renderGameBoard = () => {
         state.board.forEach((cell, i) => {
             let d = document.createElement('div'); d.className = 'cell bg-primary p-1';
             let circle = document.createElement('div'); circle.className = `c4-cell ${cell===1?'c4-p1':cell===2?'c4-p2':''}`;
+            if(window.currentGame.status === 'finished' && window.currentGame.winningLine && window.currentGame.winningLine.includes(i)) circle.classList.add('winning-piece');
             d.appendChild(circle); d.onclick = () => attemptMove(i % 7, myPlayerNum, isMyTurn); boardDiv.appendChild(d);
         });
     } 
@@ -497,7 +513,11 @@ window.renderGameBoard = () => {
     else if (type === 'gomoku') {
         state.board.forEach((cell, i) => {
             let d = document.createElement('div'); d.className = 'cell';
-            if (cell !== 0) { let piece = document.createElement('div'); piece.className = `gmk-piece ${cell===1?'gmk-p1':'gmk-p2'}`; d.appendChild(piece); }
+            if (cell !== 0) { 
+                let piece = document.createElement('div'); piece.className = `gmk-piece ${cell===1?'gmk-p1':'gmk-p2'}`; 
+                if(window.currentGame.status === 'finished' && window.currentGame.winningLine && window.currentGame.winningLine.includes(i)) piece.classList.add('winning-piece');
+                d.appendChild(piece); 
+            }
             d.onclick = () => attemptMove(i, myPlayerNum, isMyTurn); boardDiv.appendChild(d);
         });
     }
@@ -506,7 +526,9 @@ window.renderGameBoard = () => {
         state.board.forEach((cell, i) => {
             let d = document.createElement('div'); d.className = 'cell';
             if (cell !== 0) {
-                let piece = document.createElement('div'); piece.className = `rev-piece ${cell===1?'rev-p1':'rev-p2'}`; d.appendChild(piece);
+                let piece = document.createElement('div'); piece.className = `rev-piece ${cell===1?'rev-p1':'rev-p2'}`; 
+                if(window.currentGame.status === 'finished' && window.currentGame.winningLine && window.currentGame.winningLine.includes(i)) piece.classList.add('winning-piece');
+                d.appendChild(piece);
             } else if (isMyTurn && getReversiFlips(state.board, i, myPlayerNum).length > 0) {
                 // Pista de movimiento válido
                 d.classList.add('valid-move'); d.style.cursor = 'pointer';
@@ -524,6 +546,7 @@ window.renderGameBoard = () => {
                 let piece = document.createElement('div'); piece.className = `chk-piece ${cell===1 || cell===3 ? 'chk-p1' : 'chk-p2'}`;
                 if(cell>2) piece.innerText = '♚'; 
                 if(isMyTurn && localSelection.selectedPiece === i) piece.style.transform = "scale(1.15)";
+                if(window.currentGame.status === 'finished' && window.currentGame.winningLine && window.currentGame.winningLine.includes(i)) piece.classList.add('winning-piece');
                 d.appendChild(piece);
             }
             d.onclick = () => attemptMove(i, myPlayerNum, isMyTurn); boardDiv.appendChild(d);
@@ -539,14 +562,18 @@ function checkGomokuWin(b) {
             let p = b[r*15+c]; if(p === 0) continue;
             for(let [dr, dc] of dirs) {
                 let count = 1;
+                let line = [r*15+c];
                 for(let step=1; step<5; step++) {
                     let nr = r + dr*step, nc = c + dc*step;
-                    if(nr>=0 && nr<15 && nc>=0 && nc<15 && b[nr*15+nc] === p) count++; else break;
+                    if(nr>=0 && nr<15 && nc>=0 && nc<15 && b[nr*15+nc] === p) {
+                        count++;
+                        line.push(nr*15+nc);
+                    } else break;
                 }
-                if(count === 5) return p;
+                if(count === 5) return { p: p, line: line };
             }
         }
-    } return b.includes(0) ? 0 : -1;
+    } return b.includes(0) ? null : { p: -1, line: [] };
 }
 
 function getReversiFlips(board, idx, pNum) {
@@ -642,6 +669,36 @@ window.makePCMove = () => {
     }
 };
 
+function getValidCheckersMoves(board, startIdx, pNum, onlyJumps) {
+    let moves = []; let r = Math.floor(startIdx/8), c = startIdx%8;
+    let isKing = board[startIdx] > 2; let dirs = [];
+    if (pNum === 1 || isKing) dirs.push([-1, -1], [-1, 1]); 
+    if (pNum === 2 || isKing) dirs.push([1, -1], [1, 1]);   
+    for (let [dr, dc] of dirs) {
+        let nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+            let ni = nr * 8 + nc;
+            if (!onlyJumps && board[ni] === 0) moves.push(ni); 
+            else if (board[ni] !== 0 && board[ni] !== pNum && board[ni] !== pNum + 2) {
+                let nnr = r + dr * 2, nnc = c + dc * 2;
+                if (nnr >= 0 && nnr < 8 && nnc >= 0 && nnc < 8 && board[nnr * 8 + nnc] === 0) moves.push(nnr * 8 + nnc); 
+            }
+        }
+    } return moves;
+}
+
+function checkC4Win(b) {
+    for(let r=0; r<6; r++) {
+        for(let c=0; c<7; c++) {
+            let p = b[r*7+c]; if(p === 0) continue;
+            if(c<=3 && p===b[r*7+c+1] && p===b[r*7+c+2] && p===b[r*7+c+3]) return {p: p, line: [r*7+c, r*7+c+1, r*7+c+2, r*7+c+3]};
+            if(r<=2 && p===b[(r+1)*7+c] && p===b[(r+2)*7+c] && p===b[(r+3)*7+c]) return {p: p, line: [r*7+c, (r+1)*7+c, (r+2)*7+c, (r+3)*7+c]};
+            if(r<=2 && c<=3 && p===b[(r+1)*7+c+1] && p===b[(r+2)*7+c+2] && p===b[(r+3)*7+c+3]) return {p: p, line: [r*7+c, (r+1)*7+c+1, (r+2)*7+c+2, (r+3)*7+c+3]};
+            if(r<=2 && c>=3 && p===b[(r+1)*7+c-1] && p===b[(r+2)*7+c-2] && p===b[(r+3)*7+c-3]) return {p: p, line: [r*7+c, (r+1)*7+c-1, (r+2)*7+c-2, (r+3)*7+c-3]};
+        }
+    } return b.includes(0) ? null : {p: -1, line: []};
+}
+
 function attemptMove(index, myPlayerNum, isMyTurn) {
     if(!isMyTurn || window.currentGame.status !== 'playing') return;
     
@@ -682,12 +739,25 @@ function attemptMove(index, myPlayerNum, isMyTurn) {
 
     if(validMove) {
         let winnerNum = 0;
+        let winningLine = [];
+
         if(type === 'gato') {
             const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-            for(let l of lines) { if(state.board[l[0]] && state.board[l[0]] === state.board[l[1]] && state.board[l[0]] === state.board[l[2]]) winnerNum = state.board[l[0]]; }
+            for(let l of lines) { 
+                if(state.board[l[0]] && state.board[l[0]] === state.board[l[1]] && state.board[l[0]] === state.board[l[2]]) {
+                    winnerNum = state.board[l[0]];
+                    winningLine = l;
+                }
+            }
             if(!winnerNum && !state.board.includes(0)) winnerNum = -1; 
-        } else if (type === '4linea') { winnerNum = checkC4Win(state.board); }
-        else if (type === 'gomoku') { winnerNum = checkGomokuWin(state.board); }
+        } else if (type === '4linea') { 
+            let res = checkC4Win(state.board);
+            if(res) { winnerNum = res.p; winningLine = res.line; }
+        }
+        else if (type === 'gomoku') { 
+            let res = checkGomokuWin(state.board);
+            if(res) { winnerNum = res.p; winningLine = res.line; }
+        }
         else if (type === 'reversi') {
             // Verificar si el oponente puede jugar, sino nos devuelve el turno
             if (endTurn) {
@@ -702,19 +772,24 @@ function attemptMove(index, myPlayerNum, isMyTurn) {
                     if (!myHasMoves) { // Fin del juego (Ninguno puede mover o lleno)
                         let p1 = state.board.filter(c=>c===1).length; let p2 = state.board.filter(c=>c===2).length;
                         winnerNum = p1 > p2 ? 1 : (p2 > p1 ? 2 : -1);
+                        winningLine = winnerNum === 1 ? state.board.map((c, i) => c === 1 ? i : -1).filter(i => i !== -1) : (winnerNum === 2 ? state.board.map((c, i) => c === 2 ? i : -1).filter(i => i !== -1) : []);
                     } else { endTurn = false; } // Se salta el turno del rival
                 }
             }
         }
         else if (type === 'damas') {
             let p1 = state.board.filter(p => p===1 || p===3).length; let p2 = state.board.filter(p => p===2 || p===4).length;
-            if(p1 === 0) winnerNum = 2; else if(p2 === 0) winnerNum = 1;
+            if(p1 === 0) { winnerNum = 2; winningLine = state.board.map((c, i) => c === 2 || c === 4 ? i : -1).filter(i => i !== -1); }
+            else if(p2 === 0) { winnerNum = 1; winningLine = state.board.map((c, i) => c === 1 || c === 3 ? i : -1).filter(i => i !== -1); }
         }
 
         if (window.currentGame.mode === 'local') {
             window.currentGame.gameState = state;
             if (endTurn && winnerNum === 0) window.currentGame.currentLocalTurn = window.currentGame.currentLocalTurn === 1 ? 2 : 1;
-            if (winnerNum !== 0) handleGameOverResult(winnerNum);
+            if (winnerNum !== 0) {
+                window.currentGame.winningLine = winningLine;
+                handleGameOverResult(winnerNum);
+            }
             
             renderGameBoard();
 
@@ -723,46 +798,19 @@ function attemptMove(index, myPlayerNum, isMyTurn) {
                 setTimeout(makePCMove, 600); // La PC espera 600ms para parecer humana
             }
         } else if (window.currentGame.mode === 'multi') {
-            socket.emit('make_move', { room: window.currentGame.roomId, gameState: state, winnerNum: winnerNum, endTurn: endTurn });
+            socket.emit('make_move', { room: window.currentGame.roomId, gameState: state, winnerNum: winnerNum, endTurn: endTurn, winningLine: winningLine });
             window.currentGame.gameState = state;
             if (endTurn && winnerNum === 0) { window.currentGame.turn = window.currentGame.turn === 1 ? 2 : 1; }
-            if (winnerNum !== 0) handleGameOverResult(winnerNum);
+            if (winnerNum !== 0) {
+                window.currentGame.winningLine = winningLine;
+                handleGameOverResult(winnerNum);
+            }
             renderGameBoard();
         }
     }
 }
 
 function resetSelection() { localSelection = { selectedPiece: null, validMoves: [], multiJumping: false }; }
-
-function getValidCheckersMoves(board, startIdx, pNum, onlyJumps) {
-    let moves = []; let r = Math.floor(startIdx/8), c = startIdx%8;
-    let isKing = board[startIdx] > 2; let dirs = [];
-    if (pNum === 1 || isKing) dirs.push([-1, -1], [-1, 1]); 
-    if (pNum === 2 || isKing) dirs.push([1, -1], [1, 1]);   
-    for (let [dr, dc] of dirs) {
-        let nr = r + dr, nc = c + dc;
-        if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
-            let ni = nr * 8 + nc;
-            if (!onlyJumps && board[ni] === 0) moves.push(ni); 
-            else if (board[ni] !== 0 && board[ni] !== pNum && board[ni] !== pNum + 2) {
-                let nnr = r + dr * 2, nnc = c + dc * 2;
-                if (nnr >= 0 && nnr < 8 && nnc >= 0 && nnc < 8 && board[nnr * 8 + nnc] === 0) moves.push(nnr * 8 + nnc); 
-            }
-        }
-    } return moves;
-}
-
-function checkC4Win(b) {
-    for(let r=0; r<6; r++) {
-        for(let c=0; c<7; c++) {
-            let p = b[r*7+c]; if(p === 0) continue;
-            if(c<=3 && p===b[r*7+c+1] && p===b[r*7+c+2] && p===b[r*7+c+3]) return p;
-            if(r<=2 && p===b[(r+1)*7+c] && p===b[(r+2)*7+c] && p===b[(r+3)*7+c]) return p;
-            if(r<=2 && c<=3 && p===b[(r+1)*7+c+1] && p===b[(r+2)*7+c+2] && p===b[(r+3)*7+c+3]) return p;
-            if(r<=2 && c>=3 && p===b[(r+1)*7+c-1] && p===b[(r+2)*7+c-2] && p===b[(r+3)*7+c-3]) return p;
-        }
-    } return b.includes(0) ? 0 : -1;
-}
 
 function handleGameOverResult(winnerNum) {
     window.currentGame.status = 'finished';
@@ -782,6 +830,9 @@ socket.on('update_board', (data) => {
     if (window.currentGame && window.currentGame.mode === 'multi') {
         window.currentGame.gameState = data.gameState;
         if (data.endTurn && data.winnerNum === 0) { window.currentGame.turn = window.currentGame.turn === 1 ? 2 : 1; }
+        if (data.winnerNum !== 0) {
+            window.currentGame.winningLine = data.winningLine || [];
+        }
         renderGameBoard(); 
         if (data.winnerNum !== 0) handleGameOverResult(data.winnerNum);
     }
