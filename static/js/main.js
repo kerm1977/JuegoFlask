@@ -103,11 +103,22 @@ function processRecoverKey() {
 // ==========================================
 // CONEXIÓN SOCKET.IO Y SISTEMA DE RETOS
 // ==========================================
-const socket = io({
-    reconnection: true,             // Habilitar reconexión automática
-    reconnectionAttempts: Infinity, // Intentar infinitamente
-    reconnectionDelay: 1000         // Empezar a intentar cada 1 segundo
+
+// Solución: Pasar el origen de la URL explícitamente para que autoConnect: false funcione al 100%
+const socket = io(window.location.origin, {
+    autoConnect: false,             // <-- Evita el bloqueo del servidor en el Login
+    reconnection: true,             
+    reconnectionAttempts: Infinity, 
+    reconnectionDelay: 1000         
 });
+
+// Validación súper estricta para conectar el Socket SOLO si el usuario inició sesión
+const nombreUsuario = window.CURRENT_USERNAME ? String(window.CURRENT_USERNAME).trim() : "";
+const estaAutenticado = nombreUsuario !== "" && nombreUsuario !== "None" && nombreUsuario !== "False";
+
+if (estaAutenticado) {
+    socket.connect();
+}
 
 let currentChallenger = null;
 let currentGameToPlay = null;
@@ -124,7 +135,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 window.solicitarListaJugadores = () => {
-    if(!window.CURRENT_USERNAME) { alert("Debes iniciar sesión para ver los jugadores."); return; }
+    if(!estaAutenticado) { alert("Debes iniciar sesión para ver los jugadores."); return; }
     document.getElementById('playersListContainer').innerHTML = '<div class="text-center"><div class="spinner-border text-info"></div></div>';
     if(playersModalInst) playersModalInst.show();
     socket.emit('solicitar_jugadores');
@@ -334,7 +345,9 @@ socket.on('recibir_reto', (data) => {
     currentChallenger = data.retador;
     currentGameToPlay = data.game_type;
     
-    let gameName = data.game_type === 'gato' ? 'Gato' : (data.game_type === '4linea' ? '4 en Línea' : 'Damas');
+    // Nombres bonitos
+    let gameName = data.game_type === 'gato' ? 'Gato' : (data.game_type === '4linea' ? '4 en Línea' : (data.game_type === 'damas' ? 'Damas' : (data.game_type === 'reversi' ? 'Reversi' : 'Gomoku')));
+
     document.getElementById('retadorNombre').innerHTML = `<strong>${currentChallenger}</strong> te ha retado a una partida de <strong>${gameName}</strong>.`;
     
     document.getElementById('retoOverlay').style.display = 'flex';
@@ -370,22 +383,25 @@ socket.on('reto_rechazado', (data) => {
 });
 
 // ==========================================
-// REGLAS Y LÓGICA DE JUEGOS
+// REGLAS Y LÓGICA DE JUEGOS CON IA (Vs PC)
 // ==========================================
-
 window.currentGame = null; 
 let localSelection = { selectedPiece: null, validMoves: [], multiJumping: false };
 let bsGameOverModal;
 
 document.addEventListener("DOMContentLoaded", () => {
-    if (document.getElementById('gameOverModal')) {
-        bsGameOverModal = new bootstrap.Modal(document.getElementById('gameOverModal'));
-    }
+    if (document.getElementById('gameOverModal')) bsGameOverModal = new bootstrap.Modal(document.getElementById('gameOverModal'));
 });
 
 function getInitialState(type) {
     if(type === 'gato') return { board: Array(9).fill(0) };
     if(type === '4linea') return { board: Array(42).fill(0) }; 
+    if(type === 'gomoku') return { board: Array(225).fill(0) }; // 15x15
+    if(type === 'reversi') {
+        let b = Array(64).fill(0);
+        b[27] = 2; b[28] = 1; b[35] = 1; b[36] = 2; // Centro inicial
+        return { board: b };
+    }
     if(type === 'damas') {
         let b = Array(64).fill(0);
         for(let i=0; i<64; i++) {
@@ -397,9 +413,17 @@ function getInitialState(type) {
     return {};
 }
 
-window.startLocalGame = (type) => {
-    window.currentGame = { mode: 'local', gameType: type, status: 'playing', currentLocalTurn: 1, gameState: getInitialState(type) };
-    document.getElementById('lobby-view').style.display = 'none';
+// Iniciar juego modificado para recibir si es contra la PC o no
+window.startLocalGame = (type, vsPC = false) => {
+    window.currentGame = { 
+        mode: 'local', 
+        vsPC: vsPC, 
+        gameType: type, 
+        status: 'playing', 
+        currentLocalTurn: 1, 
+        gameState: getInitialState(type) 
+    };
+    document.getElementById('lobby-view').style.display = 'none'; 
     document.getElementById('game-view').style.display = 'block';
     renderGameBoard();
 };
@@ -407,74 +431,214 @@ window.startLocalGame = (type) => {
 window.renderGameBoard = () => {
     if(!window.currentGame) return;
     const boardDiv = document.getElementById('gameBoard');
-    const type = window.currentGame.gameType;
+    const type = window.currentGame.gameType; 
     const state = window.currentGame.gameState;
     
-    let gameName = type === 'gato' ? 'Gato (Tic Tac Toe)' : type === '4linea' ? '4 en Línea' : 'Damas Clásicas';
+    // Nombres bonitos
+    let gameName = type === 'gato' ? 'Gato' : (type === '4linea' ? '4 en Línea' : (type === 'damas' ? 'Damas' : (type === 'reversi' ? 'Reversi' : 'Gomoku')));
+    if(window.currentGame.mode === 'local' && window.currentGame.vsPC) gameName += " vs PC";
     document.getElementById('gameTitle').innerText = gameName;
     
     let isMyTurn, myPlayerNum, indicatorText, indicatorClass;
 
     if (window.currentGame.mode === 'local') {
-        const j = window.currentGame.currentLocalTurn;
+        const j = window.currentGame.currentLocalTurn; 
         isMyTurn = true; 
         myPlayerNum = j;
-        indicatorText = `Turno: ${j === 1 ? 'Jugador 1 (Rojo)' : 'Jugador 2 (Azul)'}`;
-        indicatorClass = j === 1 ? "text-danger fw-bold" : "text-info fw-bold";
-    } else if (window.currentGame.mode === 'multi') {
-        myPlayerNum = window.currentGame.myPlayerNum;
-        isMyTurn = (window.currentGame.turn === myPlayerNum);
         
+        // Bloquear tablero visualmente si es el turno de la PC
+        if (window.currentGame.vsPC && j === 2) {
+            indicatorText = "Pensando (Turno de la PC)...";
+            indicatorClass = "text-muted";
+            isMyTurn = false; 
+        } else {
+            indicatorText = type==='reversi'||type==='gomoku' ? `Turno: ${j===1?'Jugador 1 (Negro)':'Jugador 2 (Blanco)'}` : `Turno: ${j===1?'Jugador 1 (Rojo)':'Jugador 2 (Azul)'}`;
+            indicatorClass = j === 1 ? (type==='reversi'||type==='gomoku'?"text-dark fw-bold bg-light px-3 rounded":"text-danger fw-bold") : (type==='reversi'||type==='gomoku'?"text-light fw-bold":"text-info fw-bold");
+        }
+    } else if (window.currentGame.mode === 'multi') {
+        myPlayerNum = window.currentGame.myPlayerNum; isMyTurn = (window.currentGame.turn === myPlayerNum);
         if (isMyTurn) {
             indicatorText = "¡Es tu turno!";
-            indicatorClass = myPlayerNum === 1 ? "text-danger fw-bold" : "text-info fw-bold";
+            indicatorClass = myPlayerNum === 1 ? (type==='reversi'||type==='gomoku'?"text-dark fw-bold bg-light px-3 rounded":"text-danger fw-bold") : (type==='reversi'||type==='gomoku'?"text-light fw-bold":"text-info fw-bold");
         } else {
-            indicatorText = `Turno de ${window.currentGame.opponent || 'tu oponente'}...`;
-            indicatorClass = "text-muted";
+            indicatorText = `Turno de ${window.currentGame.opponent || 'tu oponente'}...`; indicatorClass = "text-muted";
         }
     }
 
     let indicator = document.getElementById('turnIndicator');
-    if(indicator) {
-        indicator.innerText = indicatorText; 
-        indicator.className = indicatorClass;
-    }
+    if(indicator) { indicator.innerText = indicatorText; indicator.className = indicatorClass; }
     
     boardDiv.innerHTML = '';
-    boardDiv.className = `game-board glass-panel grid-${type==='gato'?'3x3':type==='4linea'?'7x6':'8x8'}`;
+    
+    // Estilos de tablero
+    if(type === 'gato') boardDiv.className = 'game-board glass-panel grid-3x3';
+    else if(type === '4linea') boardDiv.className = 'game-board glass-panel grid-7x6';
+    else if(type === 'damas') boardDiv.className = 'game-board glass-panel grid-8x8';
+    else if(type === 'reversi') boardDiv.className = 'game-board glass-panel grid-8x8-rev';
+    else if(type === 'gomoku') boardDiv.className = 'game-board glass-panel grid-15x15';
 
+    // Render Gato
     if(type === 'gato') {
         state.board.forEach((cell, i) => {
-            let d = document.createElement('div'); d.className = 'cell shadow-sm';
-            d.innerText = cell === 1 ? 'X' : cell === 2 ? 'O' : '';
+            let d = document.createElement('div'); d.className = 'cell shadow-sm'; d.innerText = cell === 1 ? 'X' : cell === 2 ? 'O' : '';
             if(cell === 1) d.style.color = '#ff0055'; if(cell === 2) d.style.color = '#0dcaf0';
-            d.onclick = () => attemptMove(i, myPlayerNum, isMyTurn);
-            boardDiv.appendChild(d);
+            d.onclick = () => attemptMove(i, myPlayerNum, isMyTurn); boardDiv.appendChild(d);
         });
-    } else if (type === '4linea') {
+    } 
+    // Render 4 en Línea
+    else if (type === '4linea') {
         state.board.forEach((cell, i) => {
             let d = document.createElement('div'); d.className = 'cell bg-primary p-1';
-            let circle = document.createElement('div');
-            circle.className = `c4-cell ${cell===1?'c4-p1':cell===2?'c4-p2':''}`;
-            d.appendChild(circle);
-            d.onclick = () => attemptMove(i % 7, myPlayerNum, isMyTurn);
-            boardDiv.appendChild(d);
+            let circle = document.createElement('div'); circle.className = `c4-cell ${cell===1?'c4-p1':cell===2?'c4-p2':''}`;
+            d.appendChild(circle); d.onclick = () => attemptMove(i % 7, myPlayerNum, isMyTurn); boardDiv.appendChild(d);
         });
-    } else if (type === 'damas') {
+    } 
+    // Render Gomoku
+    else if (type === 'gomoku') {
+        state.board.forEach((cell, i) => {
+            let d = document.createElement('div'); d.className = 'cell';
+            if (cell !== 0) { let piece = document.createElement('div'); piece.className = `gmk-piece ${cell===1?'gmk-p1':'gmk-p2'}`; d.appendChild(piece); }
+            d.onclick = () => attemptMove(i, myPlayerNum, isMyTurn); boardDiv.appendChild(d);
+        });
+    }
+    // Render Reversi
+    else if (type === 'reversi') {
+        state.board.forEach((cell, i) => {
+            let d = document.createElement('div'); d.className = 'cell';
+            if (cell !== 0) {
+                let piece = document.createElement('div'); piece.className = `rev-piece ${cell===1?'rev-p1':'rev-p2'}`; d.appendChild(piece);
+            } else if (isMyTurn && getReversiFlips(state.board, i, myPlayerNum).length > 0) {
+                // Pista de movimiento válido
+                d.classList.add('valid-move'); d.style.cursor = 'pointer';
+            }
+            d.onclick = () => attemptMove(i, myPlayerNum, isMyTurn); boardDiv.appendChild(d);
+        });
+    }
+    // Render Damas
+    else if (type === 'damas') {
         state.board.forEach((cell, i) => {
             let row = Math.floor(i/8); let col = i%8; let d = document.createElement('div');
             let isDark = (row+col)%2 !== 0; d.className = `cell ${isDark ? 'chk-dark' : 'chk-light'}`;
             if (isMyTurn && localSelection.validMoves.includes(i)) { d.classList.add('valid-move'); d.style.cursor = 'pointer'; }
             if(cell !== 0) {
-                let piece = document.createElement('div');
-                piece.className = `chk-piece ${cell===1 || cell===3 ? 'chk-p1' : 'chk-p2'}`;
+                let piece = document.createElement('div'); piece.className = `chk-piece ${cell===1 || cell===3 ? 'chk-p1' : 'chk-p2'}`;
                 if(cell>2) piece.innerText = '♚'; 
                 if(isMyTurn && localSelection.selectedPiece === i) piece.style.transform = "scale(1.15)";
                 d.appendChild(piece);
             }
-            d.onclick = () => attemptMove(i, myPlayerNum, isMyTurn);
-            boardDiv.appendChild(d);
+            d.onclick = () => attemptMove(i, myPlayerNum, isMyTurn); boardDiv.appendChild(d);
         });
+    }
+};
+
+// AYUDANTES: Gomoku y Reversi
+function checkGomokuWin(b) {
+    const dirs = [[0,1], [1,0], [1,1], [1,-1]];
+    for(let r=0; r<15; r++) {
+        for(let c=0; c<15; c++) {
+            let p = b[r*15+c]; if(p === 0) continue;
+            for(let [dr, dc] of dirs) {
+                let count = 1;
+                for(let step=1; step<5; step++) {
+                    let nr = r + dr*step, nc = c + dc*step;
+                    if(nr>=0 && nr<15 && nc>=0 && nc<15 && b[nr*15+nc] === p) count++; else break;
+                }
+                if(count === 5) return p;
+            }
+        }
+    } return b.includes(0) ? 0 : -1;
+}
+
+function getReversiFlips(board, idx, pNum) {
+    if (board[idx] !== 0) return [];
+    let flips = []; let opp = pNum === 1 ? 2 : 1;
+    const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+    let r = Math.floor(idx/8), c = idx%8;
+    for(let [dr, dc] of dirs) {
+        let path = []; let nr = r + dr, nc = c + dc;
+        while(nr>=0 && nr<8 && nc>=0 && nc<8 && board[nr*8+nc] === opp) { path.push(nr*8+nc); nr += dr; nc += dc; }
+        if(nr>=0 && nr<8 && nc>=0 && nc<8 && board[nr*8+nc] === pNum && path.length > 0) flips.push(...path);
+    }
+    return flips;
+}
+
+// ==========================================
+// CEREBRO DE LA PC (INTELIGENCIA ARTIFICIAL)
+// ==========================================
+window.makePCMove = () => {
+    if (!window.currentGame || window.currentGame.status !== 'playing' || window.currentGame.currentLocalTurn !== 2) return;
+    
+    let type = window.currentGame.gameType; 
+    let state = window.currentGame.gameState; 
+    let pNum = 2; 
+    let chosenIndex = -1;
+
+    if (type === 'gato') {
+        let empty = [];
+        state.board.forEach((c, i) => { if(c === 0) empty.push(i); });
+        if(empty.length > 0) chosenIndex = empty[Math.floor(Math.random() * empty.length)];
+    } 
+    else if (type === '4linea') {
+        let validCols = [];
+        for(let c=0; c<7; c++) {
+            if(state.board[c] === 0) validCols.push(c);
+        }
+        if(validCols.length > 0) chosenIndex = validCols[Math.floor(Math.random() * validCols.length)];
+    } 
+    else if (type === 'gomoku') {
+        let empty = [];
+        state.board.forEach((c, i) => { if(c === 0) empty.push(i); });
+        if(empty.length > 0) chosenIndex = empty[Math.floor(Math.random() * empty.length)];
+    } 
+    else if (type === 'reversi') {
+        let validMoves = [];
+        for(let i=0; i<64; i++) {
+            if(getReversiFlips(state.board, i, pNum).length > 0) validMoves.push(i);
+        }
+        if(validMoves.length > 0) {
+            chosenIndex = validMoves[Math.floor(Math.random() * validMoves.length)];
+        } else {
+            // La PC no tiene movimientos, pasa turno
+            window.currentGame.currentLocalTurn = 1;
+            renderGameBoard();
+            return;
+        }
+    } 
+    else if (type === 'damas') {
+        // Si la PC está haciendo un salto múltiple
+        if (localSelection.multiJumping && localSelection.selectedPiece !== null) {
+            let jumps = localSelection.validMoves;
+            if (jumps.length > 0) chosenIndex = jumps[Math.floor(Math.random() * jumps.length)];
+        } else {
+            let possibleMoves = [];
+            let pieces = [];
+            state.board.forEach((c, i) => { if(c === pNum || c === pNum + 2) pieces.push(i); });
+            
+            pieces.forEach(p => {
+                let jumps = getValidCheckersMoves(state.board, p, pNum, true);
+                if(jumps.length > 0) {
+                    jumps.forEach(j => possibleMoves.push({start: p, end: j, isJump: true}));
+                } else {
+                    let normals = getValidCheckersMoves(state.board, p, pNum, false);
+                    normals.forEach(n => possibleMoves.push({start: p, end: n, isJump: false}));
+                }
+            });
+            
+            // Obligar a saltar/comer si es posible
+            let jumpsOnly = possibleMoves.filter(m => m.isJump);
+            if(jumpsOnly.length > 0) possibleMoves = jumpsOnly;
+
+            if(possibleMoves.length > 0) {
+                let move = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+                attemptMove(move.start, pNum, true); // La PC selecciona la ficha
+                setTimeout(() => attemptMove(move.end, pNum, true), 500); // La PC mueve la ficha
+                return;
+            }
+        }
+    }
+
+    if (chosenIndex !== -1) {
+        attemptMove(chosenIndex, pNum, true);
     }
 };
 
@@ -482,42 +646,36 @@ function attemptMove(index, myPlayerNum, isMyTurn) {
     if(!isMyTurn || window.currentGame.status !== 'playing') return;
     
     let state = JSON.parse(JSON.stringify(window.currentGame.gameState)); 
-    let type = window.currentGame.gameType;
-    let validMove = false; let endTurn = true; 
+    let type = window.currentGame.gameType; let validMove = false; let endTurn = true; 
 
     if(type === 'gato') {
         if(state.board[index] === 0) { state.board[index] = myPlayerNum; validMove = true; }
     } else if (type === '4linea') {
-        for(let r=5; r>=0; r--) { 
-            let i = r*7 + index; 
-            if(state.board[i] === 0) { state.board[i] = myPlayerNum; validMove = true; break; }
+        for(let r=5; r>=0; r--) { let i = r*7 + index; if(state.board[i] === 0) { state.board[i] = myPlayerNum; validMove = true; break; } }
+    } else if (type === 'gomoku') {
+        if(state.board[index] === 0) { state.board[index] = myPlayerNum; validMove = true; }
+    } else if (type === 'reversi') {
+        let flips = getReversiFlips(state.board, index, myPlayerNum);
+        if (flips.length > 0) {
+            state.board[index] = myPlayerNum; flips.forEach(i => state.board[i] = myPlayerNum); validMove = true;
         }
     } else if (type === 'damas') {
         if (!localSelection.multiJumping && (state.board[index] === myPlayerNum || state.board[index] === myPlayerNum + 2)) {
-            localSelection.selectedPiece = index; 
-            localSelection.validMoves = getValidCheckersMoves(state.board, index, myPlayerNum, false);
+            localSelection.selectedPiece = index; localSelection.validMoves = getValidCheckersMoves(state.board, index, myPlayerNum, false);
             renderGameBoard(); return; 
-        } 
-        else if (localSelection.selectedPiece !== null && localSelection.validMoves.includes(index)) {
+        } else if (localSelection.selectedPiece !== null && localSelection.validMoves.includes(index)) {
             let isJump = Math.abs(Math.floor(localSelection.selectedPiece / 8) - Math.floor(index / 8)) === 2;
             if (isJump) { 
-                let r1 = Math.floor(localSelection.selectedPiece / 8), c1 = localSelection.selectedPiece % 8;
-                let r2 = Math.floor(index / 8), c2 = index % 8;
+                let r1 = Math.floor(localSelection.selectedPiece / 8), c1 = localSelection.selectedPiece % 8; let r2 = Math.floor(index / 8), c2 = index % 8;
                 state.board[((r1 + r2) / 2) * 8 + ((c1 + c2) / 2)] = 0; 
             }
-            state.board[index] = state.board[localSelection.selectedPiece];
-            state.board[localSelection.selectedPiece] = 0;
-            
+            state.board[index] = state.board[localSelection.selectedPiece]; state.board[localSelection.selectedPiece] = 0;
             let promoted = false; 
             if (myPlayerNum === 1 && Math.floor(index / 8) === 0 && state.board[index] === 1) { state.board[index] = 3; promoted = true; }
             if (myPlayerNum === 2 && Math.floor(index / 8) === 7 && state.board[index] === 2) { state.board[index] = 4; promoted = true; }
-            
             if (isJump && !promoted) {
                 let furtherJumps = getValidCheckersMoves(state.board, index, myPlayerNum, true);
-                if (furtherJumps.length > 0) {
-                    localSelection.selectedPiece = index; localSelection.validMoves = furtherJumps;
-                    localSelection.multiJumping = true; endTurn = false; validMove = true;
-                } else { resetSelection(); validMove = true; }
+                if (furtherJumps.length > 0) { localSelection.selectedPiece = index; localSelection.validMoves = furtherJumps; localSelection.multiJumping = true; endTurn = false; validMove = true; } else { resetSelection(); validMove = true; }
             } else { resetSelection(); validMove = true; }
         }
     }
@@ -529,9 +687,27 @@ function attemptMove(index, myPlayerNum, isMyTurn) {
             for(let l of lines) { if(state.board[l[0]] && state.board[l[0]] === state.board[l[1]] && state.board[l[0]] === state.board[l[2]]) winnerNum = state.board[l[0]]; }
             if(!winnerNum && !state.board.includes(0)) winnerNum = -1; 
         } else if (type === '4linea') { winnerNum = checkC4Win(state.board); }
+        else if (type === 'gomoku') { winnerNum = checkGomokuWin(state.board); }
+        else if (type === 'reversi') {
+            // Verificar si el oponente puede jugar, sino nos devuelve el turno
+            if (endTurn) {
+                let nextP = myPlayerNum === 1 ? 2 : 1; let nextHasMoves = false; let myHasMoves = false;
+                for(let i=0; i<64; i++) {
+                    if (state.board[i] === 0) {
+                        if (getReversiFlips(state.board, i, nextP).length > 0) nextHasMoves = true;
+                        if (getReversiFlips(state.board, i, myPlayerNum).length > 0) myHasMoves = true;
+                    }
+                }
+                if (!nextHasMoves) {
+                    if (!myHasMoves) { // Fin del juego (Ninguno puede mover o lleno)
+                        let p1 = state.board.filter(c=>c===1).length; let p2 = state.board.filter(c=>c===2).length;
+                        winnerNum = p1 > p2 ? 1 : (p2 > p1 ? 2 : -1);
+                    } else { endTurn = false; } // Se salta el turno del rival
+                }
+            }
+        }
         else if (type === 'damas') {
-            let p1 = state.board.filter(p => p===1 || p===3).length;
-            let p2 = state.board.filter(p => p===2 || p===4).length;
+            let p1 = state.board.filter(p => p===1 || p===3).length; let p2 = state.board.filter(p => p===2 || p===4).length;
             if(p1 === 0) winnerNum = 2; else if(p2 === 0) winnerNum = 1;
         }
 
@@ -539,20 +715,17 @@ function attemptMove(index, myPlayerNum, isMyTurn) {
             window.currentGame.gameState = state;
             if (endTurn && winnerNum === 0) window.currentGame.currentLocalTurn = window.currentGame.currentLocalTurn === 1 ? 2 : 1;
             if (winnerNum !== 0) handleGameOverResult(winnerNum);
+            
             renderGameBoard();
-            
-        } else if (window.currentGame.mode === 'multi') {
-            socket.emit('make_move', {
-                room: window.currentGame.roomId,
-                gameState: state,
-                winnerNum: winnerNum,
-                endTurn: endTurn
-            });
-            
-            window.currentGame.gameState = state;
-            if (endTurn && winnerNum === 0) {
-                 window.currentGame.turn = window.currentGame.turn === 1 ? 2 : 1;
+
+            // Disparar movimiento de la PC automáticamente
+            if (window.currentGame.vsPC && window.currentGame.currentLocalTurn === 2 && window.currentGame.status === 'playing' && endTurn) {
+                setTimeout(makePCMove, 600); // La PC espera 600ms para parecer humana
             }
+        } else if (window.currentGame.mode === 'multi') {
+            socket.emit('make_move', { room: window.currentGame.roomId, gameState: state, winnerNum: winnerNum, endTurn: endTurn });
+            window.currentGame.gameState = state;
+            if (endTurn && winnerNum === 0) { window.currentGame.turn = window.currentGame.turn === 1 ? 2 : 1; }
             if (winnerNum !== 0) handleGameOverResult(winnerNum);
             renderGameBoard();
         }
@@ -594,58 +767,30 @@ function checkC4Win(b) {
 function handleGameOverResult(winnerNum) {
     window.currentGame.status = 'finished';
     let msg = ""; let modalHeader = document.getElementById('goHeader');
-    if(winnerNum === -1) {
-        msg = "¡Ha sido un Empate!";
-        modalHeader.className = "modal-header border-bottom-0 justify-content-center text-warning";
-    } else if (winnerNum === window.currentGame.myPlayerNum || (window.currentGame.mode === 'local' && winnerNum === 1)) {
-        msg = "¡Felicidades! Has Ganado.";
-        modalHeader.className = "modal-header border-bottom-0 justify-content-center text-success";
-    } else {
-        msg = "¡Has perdido la partida!";
-        modalHeader.className = "modal-header border-bottom-0 justify-content-center text-danger";
-    }
+    if(winnerNum === -1) { msg = "¡Ha sido un Empate!"; modalHeader.className = "modal-header border-bottom-0 justify-content-center text-warning"; }
+    else if (winnerNum === window.currentGame.myPlayerNum || (window.currentGame.mode === 'local' && winnerNum === 1)) { msg = "¡Felicidades! Has Ganado."; modalHeader.className = "modal-header border-bottom-0 justify-content-center text-success"; } 
+    else { msg = "¡Has perdido la partida!"; modalHeader.className = "modal-header border-bottom-0 justify-content-center text-danger"; }
     document.getElementById('goMessage').innerText = msg;
     if(bsGameOverModal) bsGameOverModal.show();
 }
 
-window.confirmSurrender = () => {
-    if(confirm("¿Estás seguro de que deseas abandonar la partida actual?")) {
-        closeGameOver();
-    }
-}
+window.confirmSurrender = () => { if(confirm("¿Estás seguro de que deseas abandonar la partida actual?")) { closeGameOver(); } }
 
-window.closeGameOver = () => { 
-    if(bsGameOverModal) bsGameOverModal.hide(); 
-    window.currentGame = null; 
-    document.getElementById('game-view').style.display = 'none';
-    document.getElementById('lobby-view').style.display = 'flex';
-}
+window.closeGameOver = () => { if(bsGameOverModal) bsGameOverModal.hide(); window.currentGame = null; document.getElementById('game-view').style.display = 'none'; document.getElementById('lobby-view').style.display = 'flex'; }
 
 socket.on('update_board', (data) => {
     if (window.currentGame && window.currentGame.mode === 'multi') {
         window.currentGame.gameState = data.gameState;
-        if (data.endTurn && data.winnerNum === 0) {
-             window.currentGame.turn = window.currentGame.turn === 1 ? 2 : 1;
-        }
+        if (data.endTurn && data.winnerNum === 0) { window.currentGame.turn = window.currentGame.turn === 1 ? 2 : 1; }
         renderGameBoard(); 
         if (data.winnerNum !== 0) handleGameOverResult(data.winnerNum);
     }
 });
 
 socket.on('game_started', (data) => {
-    window.currentGame = {
-        mode: 'multi',
-        gameType: data.gameType,
-        status: 'playing',
-        roomId: data.roomId,
-        turn: 1, 
-        myPlayerNum: data.myPlayerNum, 
-        opponent: data.opponent,
-        gameState: getInitialState(data.gameType)
-    };
-    
-    document.getElementById('lobby-view').style.display = 'none';
-    document.getElementById('game-view').style.display = 'block';
+    window.currentGame = { mode: 'multi', gameType: data.gameType, status: 'playing', roomId: data.roomId, turn: 1, myPlayerNum: data.myPlayerNum, opponent: data.opponent };
+    window.currentGame.gameState = getInitialState(data.gameType);
+    document.getElementById('lobby-view').style.display = 'none'; document.getElementById('game-view').style.display = 'block';
     renderGameBoard();
 });
 
@@ -653,30 +798,14 @@ socket.on('game_started', (data) => {
 // SISTEMA DE RECONEXIÓN (ANTISUSPENSIÓN)
 // ==========================================
 let disconnectModalInst = null;
-
 function getOrCreateDisconnectModal() {
     let modalEl = document.getElementById('disconnectModal');
     if (!modalEl) {
-        const modalHtml = `
-        <div class="modal fade" id="disconnectModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content glass-modal border-warning text-center shadow-lg">
-                    <div class="modal-body py-5" id="disconnectModalBody">
-                        <i class="bi bi-wifi-off text-warning display-1 mb-3 d-block heartbeat"></i>
-                        <h3 class="fw-bold text-white" id="disconnectTitle">Problema de Conexión</h3>
-                        <p class="text-muted" id="disconnectMessage">Se ha perdido la conexión con el servidor.</p>
-                        <div id="disconnectAction" class="mt-4"></div>
-                    </div>
-                </div>
-            </div>
-        </div>`;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        modalEl = document.getElementById('disconnectModal');
-    }
-    return new bootstrap.Modal(modalEl);
+        const modalHtml = `<div class="modal fade" id="disconnectModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false"><div class="modal-dialog modal-dialog-centered"><div class="modal-content glass-modal border-warning text-center shadow-lg"><div class="modal-body py-5" id="disconnectModalBody"><i class="bi bi-wifi-off text-warning display-1 mb-3 d-block heartbeat"></i><h3 class="fw-bold text-white" id="disconnectTitle">Problema de Conexión</h3><p class="text-muted" id="disconnectMessage">Se ha perdido la conexión con el servidor.</p><div id="disconnectAction" class="mt-4"></div></div></div></div></div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml); modalEl = document.getElementById('disconnectModal');
+    } return new bootstrap.Modal(modalEl);
 }
 
-// 1. Cuando TÚ te desconectas (Se va el internet o se suspende)
 socket.on('disconnect', () => {
     if (window.currentGame && window.currentGame.mode === 'multi' && window.currentGame.status === 'playing') {
         if(!disconnectModalInst) disconnectModalInst = getOrCreateDisconnectModal();
@@ -687,13 +816,8 @@ socket.on('disconnect', () => {
     }
 });
 
-// Botón para forzar reconexión
-window.reconectarJuego = () => {
-    document.getElementById('disconnectAction').innerHTML = `<div class="spinner-border text-warning"></div><p class="mt-2 text-muted">Reconectando...</p>`;
-    socket.connect(); 
-};
+window.reconectarJuego = () => { document.getElementById('disconnectAction').innerHTML = `<div class="spinner-border text-warning"></div><p class="mt-2 text-muted">Reconectando...</p>`; socket.connect(); };
 
-// 2. Cuando el OPONENTE se desconecta
 socket.on('opponent_disconnected', () => {
     if (window.currentGame && window.currentGame.mode === 'multi' && window.currentGame.status === 'playing') {
         if(!disconnectModalInst) disconnectModalInst = getOrCreateDisconnectModal();
@@ -704,35 +828,16 @@ socket.on('opponent_disconnected', () => {
     }
 });
 
-// 3. Cuando logras reconectarte con éxito
 socket.on('connect', () => {
     if (disconnectModalInst) { disconnectModalInst.hide(); }
-    
-    // Si estábamos en partida, avisarle al servidor para que el oponente nos envíe el tablero actualizado
-    if (window.currentGame && window.currentGame.mode === 'multi' && window.currentGame.status === 'playing') {
-        socket.emit('resume_game', { room: window.currentGame.roomId });
-    }
+    if (window.currentGame && window.currentGame.mode === 'multi' && window.currentGame.status === 'playing') { socket.emit('resume_game', { room: window.currentGame.roomId }); }
 });
 
-// 4. Cuando el OPONENTE vuelve (Se nos notifica)
 socket.on('opponent_reconnected', () => {
     if (disconnectModalInst) { disconnectModalInst.hide(); }
-    
-    // Nosotros sí tenemos el tablero correcto, se lo pasamos al oponente recién llegado
-    if (window.currentGame && window.currentGame.mode === 'multi') {
-        socket.emit('sync_state', {
-            room: window.currentGame.roomId,
-            gameState: window.currentGame.gameState,
-            turn: window.currentGame.turn
-        });
-    }
+    if (window.currentGame && window.currentGame.mode === 'multi') { socket.emit('sync_state', { room: window.currentGame.roomId, gameState: window.currentGame.gameState, turn: window.currentGame.turn }); }
 });
 
-// 5. Recibir el tablero sincronizado (Cuando nosotros éramos los caídos)
 socket.on('receive_sync', (data) => {
-    if (window.currentGame && window.currentGame.mode === 'multi') {
-        window.currentGame.gameState = data.gameState;
-        window.currentGame.turn = data.turn;
-        renderGameBoard();
-    }
+    if (window.currentGame && window.currentGame.mode === 'multi') { window.currentGame.gameState = data.gameState; window.currentGame.turn = data.turn; renderGameBoard(); }
 });

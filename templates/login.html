@@ -3,63 +3,88 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-5">
-        <div class="glass-panel p-5">
-            <h3 class="text-center mb-4"><i class="bi bi-controller"></i> Acceso a Juegos</h3>
+<div class="row justify-content-center align-items-center" style="min-height: 75vh;">
+    <div class="col-md-5 col-lg-4">
+        <div class="glass-panel p-4 p-md-5 shadow-lg">
+            <h2 class="text-center text-info mb-4 fw-bold"><i class="bi bi-person-circle"></i> Iniciar Sesión</h2>
             
-            {% if error %}
-                <div class="alert alert-danger glass-alert">{{ error }}</div>
-            {% endif %}
+            <!-- Muestra de Mensajes Flash para los errores -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% set mensajes_vistos = [] %}
+                    {% for category, message in messages %}
+                        {% if message not in mensajes_vistos %}
+                            <div class="alert alert-{{ category if category != 'message' else 'warning' }} text-white border-0 text-center" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(5px);">
+                                <i class="bi bi-exclamation-circle-fill"></i> {{ message }}
+                            </div>
+                            {% set _ = mensajes_vistos.append(message) %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
 
             <form method="POST" action="{{ url_for('users.login') }}">
                 <div class="mb-3">
-                    <label class="form-label">Email</label>
+                    <label for="username" class="form-label text-light small fw-bold text-uppercase">Usuario o Email</label>
                     <div class="input-group">
-                        <span class="input-group-text glass-input-group"><i class="bi bi-envelope"></i></span>
-                        <input type="email" class="form-control glass-input" name="email" required>
+                        <span class="input-group-text glass-input border-end-0"><i class="bi bi-person"></i></span>
+                        <input type="text" class="form-control glass-input border-start-0" id="username" name="username" placeholder="Tu usuario o correo" required>
                     </div>
                 </div>
-                
-                <div class="mb-3">
-                    <label class="form-label">Contraseña</label>
+                <div class="mb-4">
+                    <label for="password" class="form-label text-light small fw-bold text-uppercase">Contraseña</label>
                     <div class="input-group">
-                        <span class="input-group-text glass-input-group"><i class="bi bi-lock"></i></span>
-                        <input type="password" class="form-control glass-input" name="password" id="loginPassword" required>
-                        <button class="btn btn-outline-light glass-btn" type="button" onclick="togglePassword('loginPassword', 'loginEye')">
-                            <i class="bi bi-eye" id="loginEye"></i>
+                        <span class="input-group-text glass-input border-end-0"><i class="bi bi-lock"></i></span>
+                        <input type="password" class="form-control glass-input border-start-0 border-end-0" id="password" name="password" placeholder="••••••••" required>
+                        <button class="btn btn-outline-light glass-btn border-start-0" type="button" onclick="togglePassword('password', 'toggleIconLogin')">
+                            <i class="bi bi-eye" id="toggleIconLogin"></i>
                         </button>
                     </div>
                 </div>
-                
-                <button type="submit" class="btn btn-primary w-100 glass-btn-primary mb-3">Entrar</button>
-                
-                <div class="text-center">
-                    <a href="#" class="text-light text-decoration-none" data-bs-toggle="modal" data-bs-target="#recoverModal">
-                        ¿Olvidé mi contraseña o recordar sesión?
-                    </a>
-                </div>
+                <button type="submit" class="btn btn-info btn-lg w-100 fw-bold rounded-pill mb-3 shadow">
+                    <i class="bi bi-box-arrow-in-right"></i> Entrar
+                </button>
             </form>
+            
+            <hr class="border-secondary my-4">
+            
+            <div class="text-center mt-3">
+                <p class="text-muted mb-3 small">¿Aún no eres parte de La Tribu?</p>
+                <a href="{{ url_for('users.register') }}" class="btn btn-outline-warning rounded-pill w-100 fw-bold mb-2">
+                    <i class="bi bi-person-plus-fill"></i> Crear Nueva Cuenta
+                </a>
+                <button type="button" class="btn btn-outline-info rounded-pill w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#recoverModal">
+                    <i class="bi bi-file-earmark-lock"></i> Usar Llave de Recuperación
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Modal Recuperar Sesión -->
+<!-- ========================================== -->
+<!-- MODAL DE RECUPERACIÓN DE CUENTA            -->
+<!-- ========================================== -->
 <div class="modal fade" id="recoverModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content glass-modal">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title"><i class="bi bi-key"></i> Recuperar Cuenta</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <div class="modal-content glass-modal border-info text-center">
+            <div class="modal-header border-secondary justify-content-center">
+                <h5 class="modal-title text-info"><i class="bi bi-key-fill"></i> Recuperar Acceso</h5>
             </div>
-            <div class="modal-body">
-                <p>Por favor, sube tu llave de seguridad (archivo JSON) para restaurar tu acceso.</p>
-                <input type="file" id="keyFileInput" accept=".json" class="form-control glass-input mb-3">
-                <div id="recoverError" class="text-danger mt-2" style="display:none;"></div>
+            <div class="modal-body p-4">
+                <p class="text-muted small">Selecciona el archivo <strong>.json</strong> que descargaste al momento de registrarte para restaurar tu sesión instantáneamente.</p>
+                
+                <div id="recoverError" class="alert alert-danger glass-alert small" style="display:none;"></div>
+
+                <div class="mb-3">
+                    <input class="form-control glass-input" type="file" id="keyFileInput" accept=".json">
+                </div>
+                
+                <button class="btn btn-success rounded-pill px-4 fw-bold mt-2 shadow" onclick="processRecoverKey()">
+                    <i class="bi bi-unlock-fill"></i> Validar Llave
+                </button>
             </div>
-            <div class="modal-footer border-secondary">
-                <button type="button" class="btn btn-secondary glass-btn" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-success glass-btn-success" onclick="processRecoverKey()">Validar Llave</button>
+            <div class="modal-footer border-0 justify-content-center">
+                <button type="button" class="btn btn-sm btn-outline-light rounded-pill" data-bs-dismiss="modal">Cancelar</button>
             </div>
         </div>
     </div>

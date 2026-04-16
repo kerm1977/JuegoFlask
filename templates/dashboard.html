@@ -23,7 +23,7 @@
                         <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('gato')">
                             <i class="bi bi-people"></i> Jugar Local
                         </button>
-                        <button class="btn btn-info w-100 fw-bold" onclick="socket.emit('find_match', {game_type: 'gato'})">
+                        <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('gato')">
                             <i class="bi bi-globe"></i> Buscar Partida Online
                         </button>
                     </div>
@@ -38,7 +38,7 @@
                         <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('4linea')">
                             <i class="bi bi-people"></i> Jugar Local
                         </button>
-                        <button class="btn btn-info w-100 fw-bold" onclick="socket.emit('find_match', {game_type: '4linea'})">
+                        <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('4linea')">
                             <i class="bi bi-globe"></i> Buscar Partida Online
                         </button>
                     </div>
@@ -53,7 +53,37 @@
                         <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('damas')">
                             <i class="bi bi-people"></i> Jugar Local
                         </button>
-                        <button class="btn btn-info w-100 fw-bold" onclick="socket.emit('find_match', {game_type: 'damas'})">
+                        <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('damas')">
+                            <i class="bi bi-globe"></i> Buscar Partida Online
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Juego 4: Reversi -->
+                <div class="col-md-4">
+                    <div class="glass-panel p-4 game-card h-100">
+                        <i class="bi bi-yin-yang fs-1 text-light mb-3 d-block"></i>
+                        <h4 class="text-white fw-bold">Reversi</h4>
+                        <p class="text-muted small">Voltea a tu oponente</p>
+                        <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('reversi')">
+                            <i class="bi bi-people"></i> Jugar Local
+                        </button>
+                        <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('reversi')">
+                            <i class="bi bi-globe"></i> Buscar Partida Online
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Juego 5: Gomoku -->
+                <div class="col-md-4">
+                    <div class="glass-panel p-4 game-card h-100">
+                        <i class="bi bi-pentagon-half fs-1 text-warning mb-3 d-block"></i>
+                        <h4 class="text-white fw-bold">Gomoku</h4>
+                        <p class="text-muted small">5 en línea libre</p>
+                        <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('gomoku')">
+                            <i class="bi bi-people"></i> Jugar Local
+                        </button>
+                        <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('gomoku')">
                             <i class="bi bi-globe"></i> Buscar Partida Online
                         </button>
                     </div>
@@ -101,8 +131,6 @@
 
 {% block scripts %}
 <script>
-    // Se elimina la declaración "const socket = io();" ya que se inicializa globalmente en main.js
-    
     socket.on('connect', function() {
         const statusBadge = document.getElementById('socketStatus');
         statusBadge.className = 'badge bg-success mt-2 p-2';
@@ -112,5 +140,90 @@
     socket.on('server_message', function(data) {
         console.log("Servidor:", data.msg);
     });
+
+    // ========================================================
+    // LÓGICA PARA FILTRAR JUGADORES ONLINE DIRECTO AL RETO
+    // ========================================================
+    let gameAwaiting = null;
+
+    function buscarOnline(gameType) {
+        gameAwaiting = gameType;
+        if(!window.CURRENT_USERNAME) { alert("Debes iniciar sesión para ver los jugadores."); return; }
+        
+        document.getElementById('playersListContainer').innerHTML = '<div class="text-center"><div class="spinner-border text-info"></div></div>';
+        
+        if(playersModalInst) playersModalInst.show();
+        
+        socket.emit('solicitar_jugadores');
+    }
+
+    // Sobrescribimos el evento que viene de main.js para aplicar nuestro filtro
+    socket.off('lista_jugadores');
+
+    socket.on('lista_jugadores', (jugadores) => {
+        const container = document.getElementById('playersListContainer');
+        container.innerHTML = '';
+        
+        // Si venimos de un botón "Buscar Partida Online", filtramos solo los conectados
+        let jugadoresAMostrar = jugadores;
+        if (gameAwaiting) {
+            jugadoresAMostrar = jugadores.filter(j => j.is_online);
+        }
+
+        if (jugadoresAMostrar.length === 0) {
+            container.innerHTML = '<p class="text-center text-muted mt-3">No hay jugadores conectados en este momento para jugar.</p>'; 
+            return;
+        }
+
+        jugadoresAMostrar.forEach(j => {
+            let statusHtml = j.is_online ? '<span class="status-indicator status-online"></span> <span class="text-success small">En línea</span>' 
+                                         : '<span class="status-indicator status-offline"></span> <span class="text-muted small">Desconectado</span>';
+            
+            let btnRetarHtml = '';
+            
+            // Si ya seleccionamos un juego, el botón envía el reto directo
+            if (gameAwaiting) {
+                let nombreJuego = gameAwaiting === 'gato' ? 'Gato' : (gameAwaiting === '4linea' ? '4 en Línea' : (gameAwaiting === 'damas' ? 'Damas' : (gameAwaiting === 'reversi' ? 'Reversi' : 'Gomoku')));
+                btnRetarHtml = j.is_online ? `<button class="btn btn-sm btn-outline-warning rounded-pill" onclick="enviarRetoDirecto('${j.username}')"><i class="bi bi-lightning-charge-fill"></i> Retar a ${nombreJuego}</button>` 
+                                           : `<button class="btn btn-sm btn-outline-secondary rounded-pill" disabled>Ausente</button>`;
+            } else {
+                // Comportamiento normal (abre modal para elegir juego)
+                btnRetarHtml = j.is_online ? `<button class="btn btn-sm btn-outline-warning rounded-pill" onclick="prepararReto('${j.username}')"><i class="bi bi-lightning-charge-fill"></i> Retar</button>` 
+                                           : `<button class="btn btn-sm btn-outline-secondary rounded-pill" disabled>Ausente</button>`;
+            }
+
+            let btnStatsHtml = `<button class="btn btn-sm btn-outline-info rounded-pill ms-2" onclick="verEstadisticas('${j.username}')"><i class="bi bi-bar-chart-line-fill"></i> Stats</button>`;
+
+            container.innerHTML += `
+                <div class="player-list-item d-flex justify-content-between align-items-center p-3 border-bottom border-secondary">
+                    <div>
+                        <strong><i class="bi bi-person-fill text-info"></i> ${j.username}</strong><br>
+                        ${statusHtml}
+                    </div>
+                    <div class="d-flex align-items-center">
+                        ${btnRetarHtml}
+                        ${btnStatsHtml}
+                    </div>
+                </div>
+            `;
+        });
+    });
+
+    function enviarRetoDirecto(username) {
+        if (playersModalInst) playersModalInst.hide();
+        socket.emit('enviar_reto', { target: username, game_type: gameAwaiting });
+        
+        let nombreJuego = gameAwaiting === 'gato' ? 'Gato' : (gameAwaiting === '4linea' ? '4 en Línea' : (gameAwaiting === 'damas' ? 'Damas' : (gameAwaiting === 'reversi' ? 'Reversi' : 'Gomoku')));
+        alert(`Reto de ${nombreJuego} enviado a ${username}. Esperando respuesta...`);
+        
+        gameAwaiting = null; // Reseteamos la variable
+    }
+
+    // Interceptamos el botón general "Jugadores" del menú para resetear el filtro
+    const originalSolicitar = window.solicitarListaJugadores;
+    window.solicitarListaJugadores = () => {
+        gameAwaiting = null; // Quita el filtro, muestra a todos (conectados y desconectados)
+        if (originalSolicitar) originalSolicitar();
+    };
 </script>
 {% endblock %}

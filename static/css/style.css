@@ -1,12 +1,47 @@
 /* Nombre: style.css */
 /* Ubicación: static/css/ */
 
-/* Fondos dinámicos simulando un ambiente de juegos */
-body {
-    background: radial-gradient(circle at 15% 50%, rgba(20, 10, 40, 1), rgba(0, 0, 0, 1)), 
+/* Fondos dinámicos y animación sutil de fondo para TODO el sitio */
+.animated-bg {
+    position: fixed;
+    top: 0; 
+    left: 0; 
+    width: 100vw; 
+    height: 100vh;
+    z-index: -2;
+    background: linear-gradient(45deg, #330a2c, #0a3545, #33330a, #220a33, #330a0a, #0a3316);
+    background-size: 600% 600%;
+    animation: subtleColorShift 45s ease infinite;
+}
+
+.animated-bg::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle at 15% 50%, transparent 20%, rgba(0,0,0,0.8) 100%), 
                 url('https://www.transparenttextures.com/patterns/stardust.png');
-    min-height: 100vh;
+    pointer-events: none;
+}
+
+@keyframes subtleColorShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+body { 
+    background: #000 !important; 
+    color: #fff;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    min-height: 100vh;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: transparent;
+    z-index: -3;
 }
 
 /* Efecto principal Glassmorphism */
@@ -168,3 +203,17 @@ body {
 .chk-p1 { background: linear-gradient(145deg, #ff4444, #cc0000); border: 2px solid #ff9999; color: white; } 
 .chk-p2 { background: linear-gradient(145deg, #333333, #000000); border: 2px solid #666; color: white; }
 .valid-move::after { content: ''; position: absolute; width: 25%; height: 25%; background: rgba(46, 213, 115, 0.8); border-radius: 50%; box-shadow: 0 0 15px #2ed573; pointer-events: none; z-index: 1; }
+
+/* NUEVO: Gomoku (15x15) */
+.grid-15x15 { grid-template-columns: repeat(15, 1fr); aspect-ratio: 1; max-width: 500px; margin: 0 auto; gap: 2px; background: #e3c088; padding: 6px; }
+.grid-15x15 .cell { aspect-ratio: 1; border-radius: 0; background: rgba(255,255,255,0.2); border: 1px solid rgba(0,0,0,0.1); position: relative; }
+.gmk-piece { border-radius: 50%; width: 90%; height: 90%; box-shadow: 2px 2px 5px rgba(0,0,0,0.6); }
+.gmk-p1 { background: #222; } /* Ficha Negra */
+.gmk-p2 { background: #f8f9fa; border: 1px solid #ccc; } /* Ficha Blanca */
+
+/* NUEVO: Reversi (8x8) */
+.grid-8x8-rev { grid-template-columns: repeat(8, 1fr); aspect-ratio: 1; max-width: 450px; margin: 0 auto; gap: 2px; padding: 4px; background: #2e8b57; }
+.grid-8x8-rev .cell { aspect-ratio: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(0,0,0,0.3); border-radius: 0; position: relative; }
+.rev-piece { border-radius: 50%; width: 85%; height: 85%; transition: transform 0.4s; box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
+.rev-p1 { background: #222; } /* Ficha Negra */
+.rev-p2 { background: #f8f9fa; } /* Ficha Blanca */

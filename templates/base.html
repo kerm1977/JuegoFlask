@@ -11,6 +11,9 @@
 </head>
 <body class="bg-dark text-light pb-5"> <!-- pb-5 para dar espacio a la barra móvil -->
     
+    <!-- Contenedor del fondo animado GLOBAL -->
+    <div class="animated-bg"></div>
+
     <!-- Navbar Glassmorphic (Escritorio) -->
     <nav class="navbar navbar-expand-lg navbar-dark glass-navbar sticky-top mb-4 d-none d-md-flex">
         <div class="container">
@@ -101,7 +104,9 @@
                 <div class="modal-body d-grid gap-2">
                     <button class="btn btn-outline-light glass-btn" onclick="enviarReto('gato')">Gato</button>
                     <button class="btn btn-outline-light glass-btn" onclick="enviarReto('4linea')">4 en Línea</button>
-                    <button class="btn btn-outline-light glass-btn" onclick="enviarReto('damas')">Damas</button>
+                    <button class="btn btn-outline-light glass-btn" onclick="enviarReto('damas')">Damas Clásicas</button>
+                    <button class="btn btn-outline-light glass-btn" onclick="enviarReto('reversi')">Reversi (Othello)</button>
+                    <button class="btn btn-outline-light glass-btn" onclick="enviarReto('gomoku')">Gomoku (5 en línea)</button>
                 </div>
             </div>
         </div>
@@ -156,7 +161,7 @@
     </script>
     
     <!-- Custom JS (Con versión para forzar recarga y limpiar caché) -->
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=1.1"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=1.5"></script>
     
     {% block scripts %}{% endblock %}
 </body>

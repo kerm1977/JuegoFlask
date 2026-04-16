@@ -1,7 +1,7 @@
 # Nombre: users.py
 # Ubicación: / (Directorio raíz del proyecto)
 
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
 from models import User
 from extensions import db, bcrypt, socketio
@@ -15,10 +15,12 @@ def login():
         return redirect(url_for('games.dashboard'))
 
     if request.method == 'POST':
-        email = request.form.get('email')
+        # Cambiamos 'email' por 'identificador' porque el HTML envía name="username"
+        identifier = request.form.get('username')
         password = request.form.get('password')
         
-        user = User.query.filter_by(email=email).first()
+        # Permitimos iniciar sesión con el Nombre de Usuario O con el Email
+        user = User.query.filter((User.username == identifier) | (User.email == identifier)).first()
         
         # Validación de usuario y contraseña Bcrypt
         if user and bcrypt.check_password_hash(user.password_hash, password):
@@ -30,7 +32,9 @@ def login():
             
             return redirect(url_for('games.dashboard'))
             
-        return render_template('login.html', error='Credenciales incorrectas')
+        # Utilizamos flash en lugar de pasar la variable error directamente
+        flash('Usuario o contraseña incorrectos', 'danger')
+        return redirect(url_for('users.login'))
 
     return render_template('login.html')
 

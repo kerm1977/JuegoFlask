@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, request
 from flask_login import login_required, current_user
 from extensions import socketio, db
 from flask_socketio import emit, join_room, leave_room
-from models import User, Historial  # <-- Importamos el Historial
+from models import User, Historial
 import uuid
 
 games_bp = Blueprint('games', __name__)
@@ -115,7 +115,7 @@ def handle_challenge_response(data):
         room_id = str(uuid.uuid4())
         join_room(room_id, sid=request.sid) 
         join_room(room_id, sid=retador_sid) 
-        
+
         active_games[room_id] = {
             'type': game_type,
             'player1': retador_username,
