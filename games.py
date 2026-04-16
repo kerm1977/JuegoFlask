@@ -35,11 +35,12 @@ def handle_disconnect():
             if game.get('player1') == current_user.username or game.get('player2') == current_user.username:
                 emit('opponent_disconnected', room=room_id)
         
+        # FIX CRÍTICO: Evitar que recargar la página (F5) te borre de la lista de conectados
+        # Solo te borra si la conexión que se cerró es la que estaba activa actualmente
         if current_user.username in online_users:
-            del online_users[current_user.username]
-            
-        emit('online_users_updated', list(online_users.keys()), broadcast=True)
-
+            if online_users[current_user.username] == request.sid:
+                del online_users[current_user.username]
+                emit('online_users_updated', list(online_users.keys()), broadcast=True)
 
 @socketio.on('solicitar_jugadores')
 def send_players_list():
@@ -74,10 +75,15 @@ def enviar_estadisticas(data):
     # Preparamos TODAS las partidas para enviarlas (el frontend las agrupa y pagina)
     historial_list = []
     for h in historial_db:
+        # Extraer fecha con un formato legible si existe
+        fecha_str = h.fecha.strftime("%Y-%m-%d %H:%M") if hasattr(h, 'fecha') and h.fecha else "Fecha no registrada"
+        
         historial_list.append({
+            "id": h.id,              # IMPORTANTE: Necesario para poder eliminar el registro
             "oponente": h.oponente,
             "juego": h.juego.upper(),
-            "resultado": h.resultado
+            "resultado": h.resultado,
+            "fecha": fecha_str
         })
         
     emit('recibir_estadisticas', {
@@ -176,3 +182,17 @@ def resume_game(data):
 def sync_state(data):
     room_id = data.get('room')
     emit('receive_sync', data, room=room_id, include_self=False)
+
+# ========================================================
+# NUEVO: PERMITE BORRAR EL HISTORIAL DESDE EL PERFIL
+# ========================================================
+@socketio.on('eliminar_registro_historial')
+def eliminar_registro(data):
+    if current_user.is_authenticated:
+        record_id = data.get('id')
+        if record_id:
+            registro = Historial.query.get(record_id)
+            # Validar que el registro exista y sea propiedad del usuario actual
+            if registro and registro.jugador_id == current_user.id:
+                db.session.delete(registro)
+                db.session.commit()

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'latribu-pwa-v5';
+const CACHE_NAME = 'latribu-pwa-v6';
 
 // CORRECCIÓN DEFINITIVA: 
 // Solo cachear archivos ESTÁTICOS puros. 
@@ -6,7 +6,10 @@ const CACHE_NAME = 'latribu-pwa-v5';
 // para evitar que los redireccionamientos (302) de Flask rompan la instalación.
 const ASSETS_TO_CACHE = [
     '/static/css/main.css',
-    '/static/js/main.js',
+    '/static/js/auth.js',
+    '/static/js/lobby.js',
+    '/static/js/game.js',
+    '/static/js/network.js',
     '/manifest.json',
     '/static/icon-192.png',
     '/static/icon-512.png'

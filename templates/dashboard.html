@@ -116,41 +116,92 @@
                 <button id="btnAbandonar" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="confirmSurrender()">Abandonar</button>
             </div>
 
+            <!-- Contenedor del turno o mensaje de victoria -->
             <div class="text-center mb-3 glass-panel py-2 px-3 mx-auto" style="width: fit-content; min-width: 200px;">
-                <strong id="turnIndicator" style="font-size: 1.1rem; letter-spacing: 1px;">Tu turno</strong>
+                <strong id="turnIndicator" style="font-size: 1.1rem; letter-spacing: 1px; transition: all 0.3s;">Tu turno</strong>
             </div>
 
-            <div id="gameBoard" class="game-board glass-panel mb-5"></div>
-        </div>
-    </div>
-</div>
+            <div id="gameBoard" class="game-board glass-panel mb-3"></div>
 
-<!-- Modal Fin de Juego (Actualizado: Más pequeño, elevado 20px y con estadísticas) -->
-<div class="modal fade" id="gameOverModal" tabindex="-1" data-bs-backdrop="false">
-    <!-- Se añade "+ 20px" al padding bottom para elevar el modal -->
-    <div class="modal-dialog modal-sm d-flex align-items-end h-100" style="margin-top: 0; margin-bottom: 0; padding-bottom: calc(2.5rem + 20px);">
-        <div class="modal-content glass-modal text-center shadow-lg w-100" style="background: rgba(30, 30, 40, 0.85); backdrop-filter: blur(8px);">
-            <div class="modal-header border-bottom-0 justify-content-center pb-0" id="goHeader">
-                <h6 class="modal-title fw-bold text-uppercase mt-2" id="goTitle">Fin de la Partida</h6>
-            </div>
-            <div class="modal-body py-2">
-                <h5 id="goMessage" class="fw-bold mb-2">¡Juego Terminado!</h5>
+            <!-- ========================================================= -->
+            <!-- PANEL FIN DE JUEGO (Transformado de Modal a Panel Inline) -->
+            <!-- ========================================================= -->
+            <style>
+                /* Fuerza al modal a comportarse como un DIV normal debajo del tablero */
+                #gameOverModal {
+                    position: relative !important;
+                    z-index: 10 !important;
+                    height: auto !important;
+                    overflow: visible !important;
+                    padding: 0 !important;
+                }
+                #gameOverModal.show {
+                    display: block !important;
+                }
+                #gameOverModal .modal-dialog {
+                    margin: 0 auto !important;
+                    transform: none !important;
+                    padding-bottom: 20px !important;
+                    max-width: 100% !important;
+                }
                 
-                <!-- Contenedor de Estadísticas VS PC -->
-                <div id="pcStatsContainer" class="mt-2 glass-panel p-2 mx-auto" style="display: none; background: rgba(0,0,0,0.3); width: fit-content; border-radius: 12px;">
-                    <div class="small text-warning fw-bold mb-1"><i class="bi bi-robot"></i> Récord vs PC</div>
-                    <div class="d-flex justify-content-center gap-2">
-                        <span class="badge bg-success shadow-sm" style="width: 50px;"><span id="pcWinsDisplay">0</span> V</span>
-                        <span class="badge bg-warning text-dark shadow-sm" style="width: 50px;"><span id="pcDrawsDisplay">0</span> E</span>
-                        <span class="badge bg-danger shadow-sm" style="width: 50px;"><span id="pcLossesDisplay">0</span> D</span>
+                /* Efectos especiales para el texto de victoria/derrota */
+                @keyframes winPulse {
+                    0% { transform: scale(1); filter: brightness(1); }
+                    100% { transform: scale(1.05); filter: brightness(1.3); }
+                }
+                .win-text-effect {
+                    color: #ffda6a !important; 
+                    font-size: 1.3rem !important;
+                    font-weight: 900 !important;
+                    text-shadow: 0 0 10px rgba(255, 218, 106, 0.8), 0 0 20px rgba(255, 218, 106, 0.5);
+                    animation: winPulse 1s infinite alternate;
+                    display: inline-block;
+                }
+                .lose-text-effect {
+                    color: #ff6a6a !important;
+                    font-size: 1.3rem !important;
+                    font-weight: 900 !important;
+                    text-shadow: 0 0 10px rgba(255, 106, 106, 0.8), 0 0 20px rgba(255, 106, 106, 0.5);
+                    animation: winPulse 1s infinite alternate;
+                    display: inline-block;
+                }
+            </style>
+            
+            <div class="modal fade" id="gameOverModal" tabindex="-1" data-bs-backdrop="false">
+                <div class="modal-dialog w-100">
+                    <div class="modal-content glass-modal text-center shadow-lg w-100 border-warning" style="background: rgba(30, 30, 40, 0.85); backdrop-filter: blur(8px);">
+                        <div class="modal-header border-bottom-0 justify-content-center pb-0" id="goHeader">
+                            <h6 class="modal-title fw-bold text-uppercase mt-2" id="goTitle">Fin de la Partida</h6>
+                        </div>
+                        <div class="modal-body py-2">
+                            <h5 id="goMessage" class="fw-bold mb-2">¡Juego Terminado!</h5>
+                            
+                            <!-- Contenedor de Estadísticas VS PC -->
+                            <div id="pcStatsContainer" class="mt-2 glass-panel p-2 mx-auto" style="display: none; background: rgba(0,0,0,0.3); width: fit-content; border-radius: 12px;">
+                                <div class="small text-warning fw-bold mb-1"><i class="bi bi-robot"></i> Récord vs PC</div>
+                                <div class="d-flex justify-content-center gap-2">
+                                    <span class="badge bg-success shadow-sm" style="width: 50px;"><span id="pcWinsDisplay">0</span> V</span>
+                                    <span class="badge bg-warning text-dark shadow-sm" style="width: 50px;"><span id="pcDrawsDisplay">0</span> E</span>
+                                    <span class="badge bg-danger shadow-sm" style="width: 50px;"><span id="pcLossesDisplay">0</span> D</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer border-top-0 justify-content-center pb-3 pt-1">
+                            <button type="button" class="btn btn-sm btn-success rounded-pill px-4 shadow fw-bold" onclick="reiniciarPartida()"><i class="bi bi-arrow-clockwise"></i> Volver a Jugar</button>
+                            
+                            <!-- NUEVO BOTÓN: Ícono de Estadísticas Post-Juego -->
+                            <button type="button" id="btnPostGameStats" class="btn btn-sm btn-outline-info rounded-pill px-3 shadow fw-bold" style="display: none;" onclick="showPostGameStats()" title="Ver Estadísticas">
+                                <i class="bi bi-bar-chart-fill"></i>
+                            </button>
+
+                            <button type="button" class="btn btn-sm btn-info rounded-pill px-4 fw-bold text-dark shadow" onclick="closeGameOver()">Menú Principal</button>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer border-top-0 justify-content-center pb-3 pt-1">
-                <button type="button" class="btn btn-sm btn-success rounded-pill px-3 shadow fw-bold" onclick="reiniciarPartida()"><i class="bi bi-arrow-clockwise"></i> Reiniciar</button>
-                <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 shadow" onclick="if(bsGameOverModal) bsGameOverModal.hide();">Ver Tablero</button>
-                <button type="button" class="btn btn-sm btn-info rounded-pill px-3 fw-bold text-dark shadow" onclick="closeGameOver()">Menú</button>
-            </div>
+            <!-- ========================================================= -->
+
         </div>
     </div>
 </div>
@@ -167,6 +218,21 @@
     socket.on('server_message', function(data) {
         console.log("Servidor:", data.msg);
     });
+
+    // ========================================================
+    // LÓGICA DE ESTADÍSTICAS POST-JUEGO
+    // ========================================================
+    window.showPostGameStats = () => {
+        if (window.currentGame) {
+            if (window.currentGame.mode === 'multi') {
+                // Si es online, abre las estadísticas de tu oponente
+                window.verEstadisticas(window.currentGame.opponent);
+            } else if (window.currentGame.mode === 'local' && window.currentGame.vsPC) {
+                // Si es contra PC, abre tu propio perfil para ver los globales
+                window.verMiPerfil(); 
+            }
+        }
+    };
 
     // ========================================================
     // LÓGICA PARA REINICIAR PARTIDA
@@ -206,7 +272,7 @@
         socket.emit('solicitar_jugadores');
     }
 
-    // Sobrescribimos el evento que viene de main.js para aplicar nuestro filtro
+    // Sobrescribimos el evento que viene de lobby.js para aplicar nuestro filtro
     socket.off('lista_jugadores');
 
     socket.on('lista_jugadores', (jugadores) => {
