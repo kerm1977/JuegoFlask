@@ -554,7 +554,30 @@ window.renderGameBoard = () => {
     }
 };
 
-// AYUDANTES: Gomoku y Reversi
+// ==========================================
+// AYUDANTES: LÓGICA DE JUEGOS Y IA
+// ==========================================
+
+// Helper para la IA de Gato
+function findWinningMoveGato(board, player) {
+    const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    for (let l of lines) {
+        let [a,b,c] = l;
+        if (board[a]===player && board[b]===player && board[c]===0) return c;
+        if (board[a]===player && board[c]===player && board[b]===0) return b;
+        if (board[b]===player && board[c]===player && board[a]===0) return a;
+    }
+    return -1;
+}
+
+// Helper para la IA de 4 en Linea
+function getC4DropRow(board, col) {
+    for(let r=5; r>=0; r--) {
+        if(board[r*7+col] === 0) return r;
+    }
+    return -1;
+}
+
 function checkGomokuWin(b) {
     const dirs = [[0,1], [1,0], [1,1], [1,-1]];
     for(let r=0; r<15; r++) {
@@ -601,21 +624,93 @@ window.makePCMove = () => {
     let chosenIndex = -1;
 
     if (type === 'gato') {
-        let empty = [];
-        state.board.forEach((c, i) => { if(c === 0) empty.push(i); });
-        if(empty.length > 0) chosenIndex = empty[Math.floor(Math.random() * empty.length)];
+        let win = findWinningMoveGato(state.board, 2);
+        let block = findWinningMoveGato(state.board, 1);
+        
+        if (win !== -1) chosenIndex = win;
+        else if (block !== -1) chosenIndex = block;
+        else if (state.board[4] === 0) chosenIndex = 4; // Tomar el centro es la mejor estrategia
+        else {
+            let empty = [];
+            state.board.forEach((c, i) => { if(c === 0) empty.push(i); });
+            if(empty.length > 0) chosenIndex = empty[Math.floor(Math.random() * empty.length)];
+        }
     } 
     else if (type === '4linea') {
-        let validCols = [];
+        let bestCol = -1;
+        
+        // 1. ¿Puede la PC ganar en el siguiente turno?
         for(let c=0; c<7; c++) {
-            if(state.board[c] === 0) validCols.push(c);
+            let r = getC4DropRow(state.board, c);
+            if(r !== -1) {
+                let tempBoard = [...state.board]; tempBoard[r*7+c] = 2;
+                let res = checkC4Win(tempBoard);
+                if(res && res.p === 2) { bestCol = c; break; }
+            }
         }
-        if(validCols.length > 0) chosenIndex = validCols[Math.floor(Math.random() * validCols.length)];
+        
+        // 2. ¿Necesita bloquear al jugador?
+        if(bestCol === -1) {
+            for(let c=0; c<7; c++) {
+                let r = getC4DropRow(state.board, c);
+                if(r !== -1) {
+                    let tempBoard = [...state.board]; tempBoard[r*7+c] = 1;
+                    let res = checkC4Win(tempBoard);
+                    if(res && res.p === 1) { bestCol = c; break; }
+                }
+            }
+        }
+        
+        if(bestCol !== -1) {
+            chosenIndex = bestCol; // El índice horizontal servirá
+        } else {
+            let validCols = [];
+            for(let c=0; c<7; c++) { if(state.board[c] === 0) validCols.push(c); }
+            if(validCols.length > 0) chosenIndex = validCols[Math.floor(Math.random() * validCols.length)];
+        }
     } 
     else if (type === 'gomoku') {
-        let empty = [];
+        let winIndex = -1; let blockIndex = -1;
+        let candidates = []; let empty = [];
+        
         state.board.forEach((c, i) => { if(c === 0) empty.push(i); });
-        if(empty.length > 0) chosenIndex = empty[Math.floor(Math.random() * empty.length)];
+        
+        // Optimización: Solo evaluar casillas adyacentes a las fichas existentes
+        for(let i of empty) {
+            let r = Math.floor(i/15), c = i%15;
+            let hasNeighbor = false;
+            for(let dr=-1; dr<=1; dr++){
+                for(let dc=-1; dc<=1; dc++){
+                    if(dr===0 && dc===0) continue;
+                    let nr=r+dr, nc=c+dc;
+                    if(nr>=0 && nr<15 && nc>=0 && nc<15 && state.board[nr*15+nc]!==0) hasNeighbor=true;
+                }
+            }
+            if(hasNeighbor) candidates.push(i);
+        }
+        
+        // Si el tablero está vacío, tomar el centro
+        if(candidates.length === 0 && empty.length > 0) candidates.push(112); 
+        
+        // 1. Buscar ganar
+        for(let i of candidates) {
+            let tempBoard = [...state.board]; tempBoard[i] = 2;
+            let res = checkGomokuWin(tempBoard); 
+            if(res && res.p === 2) { winIndex = i; break; }
+        }
+        
+        // 2. Buscar bloquear
+        if(winIndex === -1) {
+            for(let i of candidates) {
+                let tempBoard = [...state.board]; tempBoard[i] = 1;
+                let res = checkGomokuWin(tempBoard); 
+                if(res && res.p === 1) { blockIndex = i; break; }
+            }
+        }
+        
+        if(winIndex !== -1) chosenIndex = winIndex;
+        else if(blockIndex !== -1) chosenIndex = blockIndex;
+        else if(candidates.length > 0) chosenIndex = candidates[Math.floor(Math.random() * candidates.length)];
     } 
     else if (type === 'reversi') {
         let validMoves = [];
@@ -623,7 +718,14 @@ window.makePCMove = () => {
             if(getReversiFlips(state.board, i, pNum).length > 0) validMoves.push(i);
         }
         if(validMoves.length > 0) {
-            chosenIndex = validMoves[Math.floor(Math.random() * validMoves.length)];
+            // Algoritmo de IA simple para Reversi: Priorizar las 4 esquinas si están disponibles
+            const corners = [0, 7, 56, 63];
+            let cornerFound = validMoves.find(m => corners.includes(m));
+            if(cornerFound !== undefined) {
+                chosenIndex = cornerFound;
+            } else {
+                chosenIndex = validMoves[Math.floor(Math.random() * validMoves.length)];
+            }
         } else {
             // La PC no tiene movimientos, pasa turno
             window.currentGame.currentLocalTurn = 1;
@@ -701,6 +803,10 @@ function checkC4Win(b) {
 
 function attemptMove(index, myPlayerNum, isMyTurn) {
     if(!isMyTurn || window.currentGame.status !== 'playing') return;
+    
+    // MÓDULO 2: Bloqueo estricto anti-trampas. 
+    // Evita que el jugador humano presione el tablero si es el turno de la máquina (2).
+    if(window.currentGame.mode === 'local' && window.currentGame.vsPC && window.currentGame.currentLocalTurn === 2 && myPlayerNum === 1) return;
     
     let state = JSON.parse(JSON.stringify(window.currentGame.gameState)); 
     let type = window.currentGame.gameType; let validMove = false; let endTurn = true; 
@@ -819,6 +925,42 @@ function handleGameOverResult(winnerNum) {
     else if (winnerNum === window.currentGame.myPlayerNum || (window.currentGame.mode === 'local' && winnerNum === 1)) { msg = "¡Felicidades! Has Ganado."; modalHeader.className = "modal-header border-bottom-0 justify-content-center text-success"; } 
     else { msg = "¡Has perdido la partida!"; modalHeader.className = "modal-header border-bottom-0 justify-content-center text-danger"; }
     document.getElementById('goMessage').innerText = msg;
+
+    // ==========================================
+    // NUEVO: ESTADÍSTICAS VS PC EN LOCALSTORAGE
+    // ==========================================
+    let pcStatsContainer = document.getElementById('pcStatsContainer');
+    if (window.currentGame.mode === 'local' && window.currentGame.vsPC) {
+        // Leemos las estadísticas actuales
+        let wins = parseInt(localStorage.getItem('pc_wins') || '0');
+        let losses = parseInt(localStorage.getItem('pc_losses') || '0');
+        let draws = parseInt(localStorage.getItem('pc_draws') || '0');
+
+        // El jugador local vs PC siempre es el "1"
+        if (winnerNum === 1) wins++;
+        else if (winnerNum === 2) losses++;
+        else if (winnerNum === -1) draws++;
+
+        // Guardamos las estadísticas
+        localStorage.setItem('pc_wins', wins);
+        localStorage.setItem('pc_losses', losses);
+        localStorage.setItem('pc_draws', draws);
+
+        // Imprimimos en pantalla
+        let winEl = document.getElementById('pcWinsDisplay');
+        let lossEl = document.getElementById('pcLossesDisplay');
+        let drawEl = document.getElementById('pcDrawsDisplay');
+        
+        if(winEl) winEl.innerText = wins;
+        if(lossEl) lossEl.innerText = losses;
+        if(drawEl) drawEl.innerText = draws;
+        
+        if (pcStatsContainer) pcStatsContainer.style.display = 'block';
+    } else {
+        // Ocultamos el panel si la partida es local vs amigo u online
+        if (pcStatsContainer) pcStatsContainer.style.display = 'none';
+    }
+
     if(bsGameOverModal) bsGameOverModal.show();
 }
 
