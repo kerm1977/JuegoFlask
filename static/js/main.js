@@ -5,7 +5,6 @@
 // AUTENTICACIÓN Y LLAVES JSON
 // ==========================================
 
-// Función para mostrar/ocultar contraseña (El Ojo)
 function togglePassword(inputId, iconId) {
     const input = document.getElementById(inputId);
     const icon = document.getElementById(iconId);
@@ -21,7 +20,6 @@ function togglePassword(inputId, iconId) {
     }
 }
 
-// Manejo del Formulario de Registro via AJAX
 const registerForm = document.getElementById('registerForm');
 if (registerForm) {
     registerForm.addEventListener('submit', function(e) {
@@ -48,10 +46,7 @@ if (registerForm) {
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                // Generar y descargar el archivo JSON
                 descargarLlave(data.key_data);
-                
-                // Mostrar el modal obligatorio
                 const modal = new bootstrap.Modal(document.getElementById('keyDownloadedModal'));
                 modal.show();
             } else {
@@ -72,7 +67,6 @@ function descargarLlave(keyData) {
     downloadAnchorNode.remove();
 }
 
-// Función para procesar la subida del JSON para recuperar contraseña
 function processRecoverKey() {
     const fileInput = document.getElementById('keyFileInput');
     const errorDiv = document.getElementById('recoverError');
@@ -109,13 +103,19 @@ function processRecoverKey() {
 // ==========================================
 // CONEXIÓN SOCKET.IO Y SISTEMA DE RETOS
 // ==========================================
-const socket = io();
+const socket = io({
+    reconnection: true,             // Habilitar reconexión automática
+    reconnectionAttempts: Infinity, // Intentar infinitamente
+    reconnectionDelay: 1000         // Empezar a intentar cada 1 segundo
+});
+
 let currentChallenger = null;
 let currentGameToPlay = null;
 let targetUserToChallenge = null;
 let playersModalInst = null;
 let selectGameModalInst = null;
 let rechazarModalInst = null;
+let statsModalInst = null;
 
 document.addEventListener("DOMContentLoaded", () => {
     if(document.getElementById('playersModal')) playersModalInst = new bootstrap.Modal(document.getElementById('playersModal'));
@@ -123,7 +123,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if(document.getElementById('rechazarModal')) rechazarModalInst = new bootstrap.Modal(document.getElementById('rechazarModal'));
 });
 
-// Pedir la lista al servidor (ESTA ES LA FUNCIÓN QUE FALTABA)
 window.solicitarListaJugadores = () => {
     if(!window.CURRENT_USERNAME) { alert("Debes iniciar sesión para ver los jugadores."); return; }
     document.getElementById('playersListContainer').innerHTML = '<div class="text-center"><div class="spinner-border text-info"></div></div>';
@@ -131,7 +130,6 @@ window.solicitarListaJugadores = () => {
     socket.emit('solicitar_jugadores');
 };
 
-// Recibir y pintar la lista de jugadores
 socket.on('lista_jugadores', (jugadores) => {
     const container = document.getElementById('playersListContainer');
     container.innerHTML = '';
@@ -144,8 +142,10 @@ socket.on('lista_jugadores', (jugadores) => {
         let statusHtml = j.is_online ? '<span class="status-indicator status-online"></span> <span class="text-success small">En línea</span>' 
                                      : '<span class="status-indicator status-offline"></span> <span class="text-muted small">Desconectado</span>';
         
-        let btnHtml = j.is_online ? `<button class="btn btn-sm btn-outline-warning rounded-pill" onclick="prepararReto('${j.username}')"><i class="bi bi-lightning-charge-fill"></i> Retar</button>` 
+        let btnRetarHtml = j.is_online ? `<button class="btn btn-sm btn-outline-warning rounded-pill" onclick="prepararReto('${j.username}')"><i class="bi bi-lightning-charge-fill"></i> Retar</button>` 
                                   : `<button class="btn btn-sm btn-outline-secondary rounded-pill" disabled>Ausente</button>`;
+
+        let btnStatsHtml = `<button class="btn btn-sm btn-outline-info rounded-pill ms-2" onclick="verEstadisticas('${j.username}')"><i class="bi bi-bar-chart-line-fill"></i> Stats</button>`;
 
         container.innerHTML += `
             <div class="player-list-item d-flex justify-content-between align-items-center p-3 border-bottom border-secondary">
@@ -153,7 +153,10 @@ socket.on('lista_jugadores', (jugadores) => {
                     <strong><i class="bi bi-person-fill text-info"></i> ${j.username}</strong><br>
                     ${statusHtml}
                 </div>
-                <div>${btnHtml}</div>
+                <div class="d-flex align-items-center">
+                    ${btnRetarHtml}
+                    ${btnStatsHtml}
+                </div>
             </div>
         `;
     });
@@ -171,7 +174,89 @@ window.enviarReto = (gameType) => {
     alert(`Reto enviado a ${targetUserToChallenge}. Esperando respuesta...`);
 };
 
+// ==========================================
+// SISTEMA DE ESTADÍSTICAS
+// ==========================================
+function getOrCreateStatsModal() {
+    let modalEl = document.getElementById('statsModal');
+    if (!modalEl) {
+        const modalHtml = `
+        <div class="modal fade" id="statsModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content glass-modal border-info">
+                    <div class="modal-header border-secondary">
+                        <h5 class="modal-title text-info" id="statsModalTitle"><i class="bi bi-bar-chart-fill"></i> Estadísticas</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="if(playersModalInst) playersModalInst.show()"></button>
+                    </div>
+                    <div class="modal-body" id="statsModalBody">
+                        <div class="text-center"><div class="spinner-border text-info"></div> Cargando...</div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modalEl = document.getElementById('statsModal');
+    }
+    if(!statsModalInst) statsModalInst = new bootstrap.Modal(modalEl);
+    return statsModalInst;
+}
+
+window.verEstadisticas = (username) => {
+    if(playersModalInst) playersModalInst.hide();
+    const statsModal = getOrCreateStatsModal();
+    document.getElementById('statsModalTitle').innerHTML = `<i class="bi bi-person-circle"></i> Stats de ${username}`;
+    document.getElementById('statsModalBody').innerHTML = '<div class="text-center my-4"><div class="spinner-border text-info"></div><p class="mt-2 text-muted">Buscando el historial...</p></div>';
+    statsModal.show();
+    socket.emit('solicitar_estadisticas', { username: username });
+};
+
+socket.on('recibir_estadisticas', (data) => {
+    const body = document.getElementById('statsModalBody');
+    if(!body) return;
+    
+    let historialHtml = '';
+    if(data.historial && data.historial.length > 0) {
+        historialHtml = data.historial.map(h => {
+            let badgeClass = h.resultado === 'Victoria' ? 'bg-success' : (h.resultado === 'Derrota' ? 'bg-danger' : 'bg-warning text-dark');
+            return `
+            <li class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-joystick text-muted"></i> vs <strong>${h.oponente}</strong> <br><small class="text-info">${h.juego}</small></span>
+                <span class="badge ${badgeClass} rounded-pill px-3 py-2 shadow-sm">${h.resultado}</span>
+            </li>`;
+        }).join('');
+    } else {
+        historialHtml = '<div class="text-center text-muted p-3"><i class="bi bi-inbox fs-1 d-block mb-2"></i> No hay partidas registradas aún.</div>';
+    }
+
+    body.innerHTML = `
+        <div class="row text-center mb-4 glass-panel p-3 mx-1">
+            <div class="col-4 border-end border-secondary">
+                <div class="display-6 text-success fw-bold">${data.victorias}</div>
+                <div class="small text-light text-uppercase fw-bold letter-spacing">Victorias</div>
+            </div>
+            <div class="col-4 border-end border-secondary">
+                <div class="display-6 text-danger fw-bold">${data.derrotas}</div>
+                <div class="small text-light text-uppercase fw-bold letter-spacing">Derrotas</div>
+            </div>
+            <div class="col-4">
+                <div class="display-6 text-warning fw-bold">${data.empates}</div>
+                <div class="small text-light text-uppercase fw-bold letter-spacing">Empates</div>
+            </div>
+        </div>
+        <p class="text-center text-warning small mb-3"><i class="bi bi-info-circle"></i> Datos simulados actualmente</p>
+        <h6 class="text-info border-bottom border-secondary pb-2 mb-3 fw-bold"><i class="bi bi-clock-history"></i> Historial de Partidas</h6>
+        <ul class="list-group list-group-flush glass-panel p-2">
+            ${historialHtml}
+        </ul>
+        <div class="mt-4 text-center">
+            <button class="btn btn-outline-light rounded-pill px-4" data-bs-dismiss="modal" onclick="if(playersModalInst) playersModalInst.show()"><i class="bi bi-arrow-left"></i> Volver a Jugadores</button>
+        </div>
+    `;
+});
+
+// ==========================================
 // OVERLAY GIGANTE: RECIBIR RETO
+// ==========================================
 socket.on('recibir_reto', (data) => {
     currentChallenger = data.retador;
     currentGameToPlay = data.game_type;
@@ -489,4 +574,92 @@ socket.on('game_started', (data) => {
     document.getElementById('lobby-view').style.display = 'none';
     document.getElementById('game-view').style.display = 'block';
     renderGameBoard();
+});
+
+// ==========================================
+// SISTEMA DE RECONEXIÓN (ANTISUSPENSIÓN)
+// ==========================================
+let disconnectModalInst = null;
+
+function getOrCreateDisconnectModal() {
+    let modalEl = document.getElementById('disconnectModal');
+    if (!modalEl) {
+        const modalHtml = `
+        <div class="modal fade" id="disconnectModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content glass-modal border-warning text-center shadow-lg">
+                    <div class="modal-body py-5" id="disconnectModalBody">
+                        <i class="bi bi-wifi-off text-warning display-1 mb-3 d-block heartbeat"></i>
+                        <h3 class="fw-bold text-white" id="disconnectTitle">Problema de Conexión</h3>
+                        <p class="text-muted" id="disconnectMessage">Se ha perdido la conexión con el servidor.</p>
+                        <div id="disconnectAction" class="mt-4"></div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modalEl = document.getElementById('disconnectModal');
+    }
+    return new bootstrap.Modal(modalEl);
+}
+
+// 1. Cuando TÚ te desconectas (Se va el internet o se suspende)
+socket.on('disconnect', () => {
+    if (window.currentGame && window.currentGame.mode === 'multi' && window.currentGame.status === 'playing') {
+        if(!disconnectModalInst) disconnectModalInst = getOrCreateDisconnectModal();
+        document.getElementById('disconnectTitle').innerText = "¡Te has desconectado!";
+        document.getElementById('disconnectMessage').innerText = "Tu dispositivo entró en suspensión o perdió señal. El juego está pausado.";
+        document.getElementById('disconnectAction').innerHTML = `<button class="btn btn-warning rounded-pill px-4 fw-bold shadow" onclick="reconectarJuego()"><i class="bi bi-arrow-clockwise"></i> Reconectar y Reanudar</button>`;
+        disconnectModalInst.show();
+    }
+});
+
+// Botón para forzar reconexión
+window.reconectarJuego = () => {
+    document.getElementById('disconnectAction').innerHTML = `<div class="spinner-border text-warning"></div><p class="mt-2 text-muted">Reconectando...</p>`;
+    socket.connect(); 
+};
+
+// 2. Cuando el OPONENTE se desconecta
+socket.on('opponent_disconnected', () => {
+    if (window.currentGame && window.currentGame.mode === 'multi' && window.currentGame.status === 'playing') {
+        if(!disconnectModalInst) disconnectModalInst = getOrCreateDisconnectModal();
+        document.getElementById('disconnectTitle').innerText = "Oponente Desconectado";
+        document.getElementById('disconnectMessage').innerHTML = `<strong>${window.currentGame.opponent}</strong> tiene problemas de conexión.<br>Por favor, espera en esta pantalla a que reanude el juego...`;
+        document.getElementById('disconnectAction').innerHTML = `<div class="spinner-grow text-warning" role="status"></div><p class="mt-2 small text-muted">Esperando reconexión...</p>`;
+        disconnectModalInst.show();
+    }
+});
+
+// 3. Cuando logras reconectarte con éxito
+socket.on('connect', () => {
+    if (disconnectModalInst) { disconnectModalInst.hide(); }
+    
+    // Si estábamos en partida, avisarle al servidor para que el oponente nos envíe el tablero actualizado
+    if (window.currentGame && window.currentGame.mode === 'multi' && window.currentGame.status === 'playing') {
+        socket.emit('resume_game', { room: window.currentGame.roomId });
+    }
+});
+
+// 4. Cuando el OPONENTE vuelve (Se nos notifica)
+socket.on('opponent_reconnected', () => {
+    if (disconnectModalInst) { disconnectModalInst.hide(); }
+    
+    // Nosotros sí tenemos el tablero correcto, se lo pasamos al oponente recién llegado
+    if (window.currentGame && window.currentGame.mode === 'multi') {
+        socket.emit('sync_state', {
+            room: window.currentGame.roomId,
+            gameState: window.currentGame.gameState,
+            turn: window.currentGame.turn
+        });
+    }
+});
+
+// 5. Recibir el tablero sincronizado (Cuando nosotros éramos los caídos)
+socket.on('receive_sync', (data) => {
+    if (window.currentGame && window.currentGame.mode === 'multi') {
+        window.currentGame.gameState = data.gameState;
+        window.currentGame.turn = data.turn;
+        renderGameBoard();
+    }
 });

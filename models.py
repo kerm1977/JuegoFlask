@@ -3,6 +3,7 @@
 
 from extensions import db
 from flask_login import UserMixin
+from datetime import datetime # ¡No olvides importar esto!
 
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
@@ -17,5 +18,16 @@ class Game(db.Model):
     __tablename__ = 'games'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), nullable=False)
-    status = db.Column(db.String(50), default="waiting") # waiting, active, finished
-    # Puedes añadir más campos como current_players, max_players, etc.
+    status = db.Column(db.String(50), default="waiting")
+
+# --- NUEVA TABLA DE ESTADÍSTICAS ---
+class Historial(db.Model):
+    __tablename__ = 'historial'
+    id = db.Column(db.Integer, primary_key=True)
+    jugador_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    oponente = db.Column(db.String(150), nullable=False)
+    juego = db.Column(db.String(50), nullable=False)
+    resultado = db.Column(db.String(20), nullable=False) # 'Victoria', 'Derrota', 'Empate'
+    fecha = db.Column(db.DateTime, default=datetime.utcnow)
+
+    jugador = db.relationship('User', backref=db.backref('historial', lazy=True))
