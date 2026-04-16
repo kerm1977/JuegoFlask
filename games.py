@@ -55,7 +55,7 @@ def send_players_list():
             })
     emit('lista_jugadores', players_data)
 
-# --- AHORA SOLICITA DATOS 100% REALES DE LA BASE DE DATOS ---
+# --- DATOS 100% REALES DE LA BASE DE DATOS ---
 @socketio.on('solicitar_estadisticas')
 def enviar_estadisticas(data):
     username = data.get('username')
@@ -71,9 +71,9 @@ def enviar_estadisticas(data):
     derrotas = sum(1 for h in historial_db if h.resultado == 'Derrota')
     empates = sum(1 for h in historial_db if h.resultado == 'Empate')
     
-    # Preparamos las últimas 10 partidas para mostrarlas en la lista visual
+    # Preparamos TODAS las partidas para enviarlas (el frontend las agrupa y pagina)
     historial_list = []
-    for h in historial_db[:10]:
+    for h in historial_db:
         historial_list.append({
             "oponente": h.oponente,
             "juego": h.juego.upper(),
@@ -125,7 +125,7 @@ def handle_challenge_response(data):
         emit('game_started', {'roomId': room_id, 'gameType': game_type, 'myPlayerNum': 1, 'opponent': current_user.username}, room=retador_sid)
         emit('game_started', {'roomId': room_id, 'gameType': game_type, 'myPlayerNum': 2, 'opponent': retador_username}, room=request.sid)
 
-# --- AHORA GUARDA LA PARTIDA CUANDO ALGUIEN GANA ---
+# --- GUARDA LA PARTIDA CUANDO ALGUIEN GANA ---
 @socketio.on('make_move')
 def handle_move(data):
     room_id = data.get('room')

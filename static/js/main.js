@@ -130,6 +130,15 @@ window.solicitarListaJugadores = () => {
     socket.emit('solicitar_jugadores');
 };
 
+// Escuchar cambios de estado (conectado/desconectado) en tiempo real
+socket.on('online_users_updated', () => {
+    const modalEl = document.getElementById('playersModal');
+    // Si el modal está abierto en pantalla, volvemos a pedir la lista automáticamente
+    if (modalEl && modalEl.classList.contains('show')) {
+        socket.emit('solicitar_jugadores');
+    }
+});
+
 socket.on('lista_jugadores', (jugadores) => {
     const container = document.getElementById('playersListContainer');
     container.innerHTML = '';
@@ -175,8 +184,11 @@ window.enviarReto = (gameType) => {
 };
 
 // ==========================================
-// SISTEMA DE ESTADÍSTICAS
+// SISTEMA DE ESTADÍSTICAS Y PAGINACIÓN
 // ==========================================
+window.currentStatsData = [];
+window.currentStatsPage = 1;
+
 function getOrCreateStatsModal() {
     let modalEl = document.getElementById('statsModal');
     if (!modalEl) {
@@ -214,21 +226,25 @@ socket.on('recibir_estadisticas', (data) => {
     const body = document.getElementById('statsModalBody');
     if(!body) return;
     
-    let historialHtml = '';
+    // Agrupar historial por oponente y juego
+    const grouped = {};
     if(data.historial && data.historial.length > 0) {
-        historialHtml = data.historial.map(h => {
-            let badgeClass = h.resultado === 'Victoria' ? 'bg-success' : (h.resultado === 'Derrota' ? 'bg-danger' : 'bg-warning text-dark');
-            return `
-            <li class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-joystick text-muted"></i> vs <strong>${h.oponente}</strong> <br><small class="text-info">${h.juego}</small></span>
-                <span class="badge ${badgeClass} rounded-pill px-3 py-2 shadow-sm">${h.resultado}</span>
-            </li>`;
-        }).join('');
-    } else {
-        historialHtml = '<div class="text-center text-muted p-3"><i class="bi bi-inbox fs-1 d-block mb-2"></i> No hay partidas registradas aún.</div>';
+        data.historial.forEach(h => {
+            const key = `${h.oponente}-${h.juego}`;
+            if (!grouped[key]) {
+                grouped[key] = { oponente: h.oponente, juego: h.juego, V: 0, E: 0, D: 0 };
+            }
+            if (h.resultado === 'Victoria') grouped[key].V++;
+            else if (h.resultado === 'Derrota') grouped[key].D++;
+            else if (h.resultado === 'Empate') grouped[key].E++;
+        });
     }
+    
+    // Convertir el diccionario agrupado a un array para poder paginarlo
+    window.currentStatsData = Object.values(grouped);
+    window.currentStatsPage = 1;
 
-    body.innerHTML = `
+    let headerHtml = `
         <div class="row text-center mb-4 glass-panel p-3 mx-1">
             <div class="col-4 border-end border-secondary">
                 <div class="display-6 text-success fw-bold">${data.victorias}</div>
@@ -243,16 +259,73 @@ socket.on('recibir_estadisticas', (data) => {
                 <div class="small text-light text-uppercase fw-bold letter-spacing">Empates</div>
             </div>
         </div>
-        <p class="text-center text-warning small mb-3"><i class="bi bi-info-circle"></i> Datos simulados actualmente</p>
         <h6 class="text-info border-bottom border-secondary pb-2 mb-3 fw-bold"><i class="bi bi-clock-history"></i> Historial de Partidas</h6>
-        <ul class="list-group list-group-flush glass-panel p-2">
-            ${historialHtml}
-        </ul>
+        <div id="statsListContainer"></div>
+        <div id="statsPagination" class="d-flex justify-content-between align-items-center mt-3 px-2"></div>
         <div class="mt-4 text-center">
             <button class="btn btn-outline-light rounded-pill px-4" data-bs-dismiss="modal" onclick="if(playersModalInst) playersModalInst.show()"><i class="bi bi-arrow-left"></i> Volver a Jugadores</button>
         </div>
     `;
+    
+    body.innerHTML = headerHtml;
+    renderStatsPage(1); // Renderizamos la primera página (10 items)
 });
+
+window.renderStatsPage = (page) => {
+    window.currentStatsPage = page;
+    const container = document.getElementById('statsListContainer');
+    const pagination = document.getElementById('statsPagination');
+    if(!container || !pagination) return;
+
+    if (window.currentStatsData.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted p-3"><i class="bi bi-inbox fs-1 d-block mb-2"></i> No hay partidas registradas aún.</div>';
+        pagination.innerHTML = '';
+        return;
+    }
+
+    const itemsPerPage = 10;
+    const totalPages = Math.ceil(window.currentStatsData.length / itemsPerPage);
+    const startIndex = (page - 1) * itemsPerPage;
+    const slice = window.currentStatsData.slice(startIndex, startIndex + itemsPerPage);
+
+    let listHtml = '<ul class="list-group list-group-flush glass-panel p-2">';
+    slice.forEach(item => {
+        listHtml += `
+            <li class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="bi bi-person-fill text-muted"></i> <strong>${item.oponente}</strong> 
+                    <small class="text-info">(${item.juego})</small>
+                </span>
+                <span>
+                    <span class="badge bg-success rounded-pill shadow-sm" style="width: 45px;">${item.V}-V</span>
+                    <span class="badge bg-warning text-dark rounded-pill shadow-sm" style="width: 45px;">${item.E}-E</span>
+                    <span class="badge bg-danger rounded-pill shadow-sm" style="width: 45px;">${item.D}-D</span>
+                </span>
+            </li>
+        `;
+    });
+    listHtml += '</ul>';
+    container.innerHTML = listHtml;
+
+    // Controles de paginación
+    let pagHtml = '';
+    if (totalPages > 1) {
+        if (page > 1) {
+            pagHtml += `<button class="btn btn-sm btn-outline-info rounded-pill" onclick="renderStatsPage(${page - 1})"><i class="bi bi-chevron-left"></i> Anterior</button>`;
+        } else {
+            pagHtml += `<div style="width: 85px;"></div>`; 
+        }
+        
+        pagHtml += `<span class="text-muted small">Página ${page} de ${totalPages}</span>`;
+
+        if (page < totalPages) {
+            pagHtml += `<button class="btn btn-sm btn-outline-info rounded-pill" onclick="renderStatsPage(${page + 1})">Siguiente <i class="bi bi-chevron-right"></i></button>`;
+        } else {
+            pagHtml += `<div style="width: 85px;"></div>`; 
+        }
+    }
+    pagination.innerHTML = pagHtml;
+};
 
 // ==========================================
 // OVERLAY GIGANTE: RECIBIR RETO
