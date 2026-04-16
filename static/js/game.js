@@ -39,64 +39,96 @@ function getInitialState(type) {
 }
 
 // ==========================================
-// [MÓDULO: UI] - MODAL DE DIFICULTAD DE LA PC
+// [MÓDULO: UI] - MODAL AVANZADO DE CONFIGURACIÓN PC
 // ==========================================
 let pendingGameTypeForPC = null;
-let difficultyModalInst = null;
+let pcConfigModalInst = null;
+window.tempPCConfig = { diff: 'normal', starter: 1 };
 
 /**
- * Inyecta y muestra un modal estilizado (Glassmorphism) para elegir el nivel de la IA.
+ * Inyecta y muestra un modal interactivo para elegir dificultad y quién inicia.
  * @param {string} gameType - El juego que se va a iniciar.
  */
-function showDifficultyModal(gameType) {
+function showPCConfigModal(gameType) {
     pendingGameTypeForPC = gameType;
-    let modalEl = document.getElementById('difficultyModal');
+    window.tempPCConfig = { diff: 'normal', starter: 1 }; // Valores por defecto
     
-    // Si no existe el modal en el HTML, lo creamos e inyectamos
+    let modalEl = document.getElementById('pcConfigModal');
+    
     if (!modalEl) {
         const modalHtml = `
-        <div class="modal fade" id="difficultyModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal fade" id="pcConfigModal" tabindex="-1" data-bs-backdrop="static">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content glass-modal border-info text-center shadow-lg" style="background: rgba(20, 20, 30, 0.95); backdrop-filter: blur(12px);">
                     <div class="modal-header border-secondary justify-content-center">
-                        <h5 class="modal-title text-info fw-bold"><i class="bi bi-robot"></i> Elige el Nivel de la PC</h5>
+                        <h5 class="modal-title text-info fw-bold"><i class="bi bi-gear-fill"></i> Configurar Partida vs PC</h5>
                     </div>
-                    <div class="modal-body py-4">
-                        <p class="text-light mb-4">¿Qué tan inteligente quieres que sea la Inteligencia Artificial?</p>
-                        <div class="d-grid gap-3">
-                            <button class="btn btn-outline-success btn-lg rounded-pill shadow-sm" onclick="selectDifficulty('facil')">
-                                <i class="bi bi-balloon"></i> Fácil <span class="d-block small text-white-50" style="font-size: 0.75rem;">Se equivoca mucho</span>
-                            </button>
-                            <button class="btn btn-outline-warning btn-lg rounded-pill shadow-sm" onclick="selectDifficulty('normal')">
-                                <i class="bi bi-person"></i> Normal <span class="d-block small text-white-50" style="font-size: 0.75rem;">Juega como un humano</span>
-                            </button>
-                            <button class="btn btn-outline-danger btn-lg rounded-pill shadow-sm" onclick="selectDifficulty('dificil')">
-                                <i class="bi bi-fire"></i> Difícil <span class="d-block small text-white-50" style="font-size: 0.75rem;">Juega a ganar sin piedad</span>
-                            </button>
+                    <div class="modal-body py-4 text-start px-4">
+                        
+                        <!-- Sección 1: Dificultad -->
+                        <h6 class="text-light mb-3 border-bottom border-secondary pb-2"><i class="bi bi-cpu"></i> 1. Nivel de Inteligencia</h6>
+                        <div class="d-flex justify-content-between gap-2 mb-4">
+                            <button id="btnDiffFacil" class="btn flex-fill rounded-pill shadow-sm btn-outline-success" onclick="setTempDiff('facil')">Fácil</button>
+                            <button id="btnDiffNormal" class="btn flex-fill rounded-pill shadow-sm btn-warning fw-bold text-dark" onclick="setTempDiff('normal')">Normal</button>
+                            <button id="btnDiffDificil" class="btn flex-fill rounded-pill shadow-sm btn-outline-danger" onclick="setTempDiff('dificil')">Difícil</button>
                         </div>
+
+                        <!-- Sección 2: Quién Inicia -->
+                        <h6 class="text-light mb-3 border-bottom border-secondary pb-2"><i class="bi bi-play-circle"></i> 2. ¿Quién inicia el juego?</h6>
+                        <div class="d-flex justify-content-between gap-2 mb-4">
+                            <button id="btnStartYo" class="btn flex-fill rounded-pill shadow-sm btn-info fw-bold text-dark" onclick="setTempStarter(1)">Empiezo Yo</button>
+                            <button id="btnStartAleatorio" class="btn flex-fill rounded-pill shadow-sm btn-outline-light" onclick="setTempStarter(0)"><i class="bi bi-dice-5"></i> Al Azar</button>
+                            <button id="btnStartPC" class="btn flex-fill rounded-pill shadow-sm btn-outline-danger" onclick="setTempStarter(2)">Empieza PC</button>
+                        </div>
+
                     </div>
-                    <div class="modal-footer border-secondary justify-content-center">
+                    <div class="modal-footer border-secondary justify-content-between">
                         <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-lg btn-info rounded-pill px-5 fw-bold shadow-sm" onclick="confirmPCConfig()">¡A Jugar!</button>
                     </div>
                 </div>
             </div>
         </div>`;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
-        modalEl = document.getElementById('difficultyModal');
-        difficultyModalInst = new bootstrap.Modal(modalEl);
+        modalEl = document.getElementById('pcConfigModal');
+        pcConfigModalInst = new bootstrap.Modal(modalEl);
     }
-    difficultyModalInst.show();
+    
+    // Resetear las clases visuales al abrir el modal
+    setTempDiff('normal');
+    setTempStarter(1);
+    pcConfigModalInst.show();
 }
 
 /**
- * Recibe la selección del botón del modal y arranca el juego.
- * @param {string} diff - Dificultad seleccionada ('facil', 'normal', 'dificil').
+ * Funciones para manejar los estilos visuales de los botones en el Modal de Configuración
  */
-window.selectDifficulty = (diff) => {
-    if (difficultyModalInst) difficultyModalInst.hide();
+window.setTempDiff = (diff) => {
+    window.tempPCConfig.diff = diff;
+    document.getElementById('btnDiffFacil').className = `btn flex-fill rounded-pill shadow-sm ${diff==='facil' ? 'btn-success fw-bold text-white' : 'btn-outline-success'}`;
+    document.getElementById('btnDiffNormal').className = `btn flex-fill rounded-pill shadow-sm ${diff==='normal' ? 'btn-warning fw-bold text-dark' : 'btn-outline-warning'}`;
+    document.getElementById('btnDiffDificil').className = `btn flex-fill rounded-pill shadow-sm ${diff==='dificil' ? 'btn-danger fw-bold text-white' : 'btn-outline-danger'}`;
+};
+
+window.setTempStarter = (starter) => {
+    window.tempPCConfig.starter = starter;
+    document.getElementById('btnStartYo').className = `btn flex-fill rounded-pill shadow-sm ${starter===1 ? 'btn-info fw-bold text-dark' : 'btn-outline-info'}`;
+    document.getElementById('btnStartAleatorio').className = `btn flex-fill rounded-pill shadow-sm ${starter===0 ? 'btn-light fw-bold text-dark' : 'btn-outline-light'}`;
+    document.getElementById('btnStartPC').className = `btn flex-fill rounded-pill shadow-sm ${starter===2 ? 'btn-danger fw-bold text-white' : 'btn-outline-danger'}`;
+};
+
+window.confirmPCConfig = () => {
+    if (pcConfigModalInst) pcConfigModalInst.hide();
     if (pendingGameTypeForPC) {
-        startLocalGame(pendingGameTypeForPC, true, diff);
-        pendingGameTypeForPC = null; // Reiniciar la variable
+        let finalStarter = window.tempPCConfig.starter;
+        
+        // Si eligió "Al Azar", tiramos una moneda (1 o 2)
+        if (finalStarter === 0) {
+            finalStarter = Math.random() < 0.5 ? 1 : 2; 
+        }
+        
+        startLocalGame(pendingGameTypeForPC, true, window.tempPCConfig.diff, finalStarter);
+        pendingGameTypeForPC = null; 
     }
 };
 
@@ -107,42 +139,53 @@ window.selectDifficulty = (diff) => {
  * @param {string} type - Tipo de juego.
  * @param {boolean} vsPC - Indica si la partida será contra la Inteligencia Artificial.
  * @param {string} difficulty - Dificultad de la PC ('facil', 'normal', 'dificil'). Default: null.
+ * @param {number} startingTurn - Jugador que inicia (1: Humano, 2: PC). Default: null.
  */
-window.startLocalGame = (type, vsPC = false, difficulty = null) => {
+window.startLocalGame = (type, vsPC = false, difficulty = null, startingTurn = null) => {
     
-    // Si es contra la PC y no se mandó dificultad por parámetro (porque venimos del lobby)
+    // Si es contra la PC y venimos directo del lobby sin configuración
     if (vsPC && difficulty === null) {
         
-        // ¡Magia!: Si estamos apretando el botón de revancha, recordamos la dificultad anterior
+        // ¡Magia de Revancha!: Si apretamos "Volver a jugar", recordamos la config anterior
+        // y de paso, intercambiamos quién empieza para que sea justo.
         if (window.currentGame && window.currentGame.vsPC && window.currentGame.difficulty) {
             difficulty = window.currentGame.difficulty;
+            // Si yo empecé antes, ahora empieza la PC, y viceversa.
+            startingTurn = window.currentGame.originalStartingTurn === 1 ? 2 : 1; 
         } else {
-            // Es una partida nueva, así que mostramos el modal bonito de Bootstrap
-            showDifficultyModal(type);
-            return; // Detenemos la ejecución aquí hasta que el jugador elija la dificultad
+            // Es una partida totalmente nueva, mostramos el Panel de Configuración
+            showPCConfigModal(type);
+            return; // Detenemos aquí hasta que el jugador confirme
         }
     }
 
     let finalDifficulty = difficulty || 'normal';
+    let finalStarter = startingTurn || 1; // Por defecto inicia el Humano (Jugador 1)
 
     window.currentGame = { 
         mode: 'local', 
         vsPC: vsPC, 
-        difficulty: finalDifficulty, // <-- GUARDAMOS LA DIFICULTAD
+        difficulty: finalDifficulty, 
+        originalStartingTurn: finalStarter, // <-- GUARDAMOS QUIÉN EMPEZÓ PARA LA REVANCHA
         gameType: type, 
         status: 'playing', 
-        currentLocalTurn: 1, 
+        currentLocalTurn: finalStarter,     // <-- ASIGNAMOS EL TURNO INICIAL (1 o 2)
         gameState: getInitialState(type) 
     };
+    
     document.getElementById('lobby-view').style.display = 'none'; 
     document.getElementById('game-view').style.display = 'block';
     
-    // Ocultar botón de stats si estaba visible de una partida anterior
     let btnStats = document.getElementById('btnPostGameStats');
     if (btnStats) btnStats.style.display = 'none';
     
     renderGameBoard();
-    window.scrollTo({ top: 0, behavior: 'smooth' }); // <-- Posicionar arriba al inicio
+    window.scrollTo({ top: 0, behavior: 'smooth' }); 
+    
+    // ¡CRÍTICO! Si le configuramos el turno a la PC, tenemos que decirle que juegue inmediatamente
+    if (vsPC && finalStarter === 2) {
+        setTimeout(makePCMove, 800);
+    }
 };
 
 /**
