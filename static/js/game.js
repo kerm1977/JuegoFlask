@@ -26,19 +26,26 @@ document.addEventListener("DOMContentLoaded", () => {
         cssFix.id = 'mobileGameOverFix';
         cssFix.innerHTML = `
             /* 1. Separación estricta de 10px respecto al tablero de juego */
-            #gameOverModal {
+            #gameOverModal .modal-dialog {
                 margin-top: 10px !important;
             }
             
             /* 2. Ajustes exclusivos para vista de Celulares */
             @media (max-width: 576px) {
-                /* Eliminar márgenes gigantes por defecto de Bootstrap para juntar los elementos */
-                #gameOverModal .mt-4, #gameOverModal .mb-4, #gameOverModal .my-4 {
-                    margin-top: 0.25rem !important;
-                    margin-bottom: 0.25rem !important;
+                /* Eliminar todos los márgenes gigantes por defecto para juntar los elementos */
+                #gameOverModal .mt-4, #gameOverModal .mb-4, #gameOverModal .my-4,
+                #gameOverModal .mt-3, #gameOverModal .mb-3, #gameOverModal .my-3 {
+                    margin-top: 0 !important;
+                    margin-bottom: 0 !important;
                 }
 
-                /* Agregar la línea divisoria <hr> debajo del título de Fin de Partida */
+                /* Reducir el padding interno para ganar espacio */
+                #gameOverModal .modal-body, #gameOverModal .modal-header {
+                    padding: 0.5rem !important;
+                    border-bottom: none !important;
+                }
+
+                /* Agregar la línea divisoria <hr> simulada DEBAJO del título */
                 #goHeader::after, 
                 #gameOverModal .modal-header::after {
                     content: "";
@@ -47,6 +54,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     height: 1px;
                     background-color: rgba(255, 255, 255, 0.15);
                     margin-top: 0.5rem;
+                    margin-bottom: 0.5rem;
                 }
 
                 #goHeader, #gameOverModal .modal-header {
@@ -55,13 +63,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     flex-direction: column;
                 }
 
-                /* Forzar a que los botones se mantengan siempre en una sola línea horizontal */
+                /* Forzar a que los botones se mantengan siempre en una sola línea horizontal pegados */
                 #gameOverModal .modal-body > div:last-child,
-                #gameOverModal .d-flex.justify-content-center {
+                #gameOverModal .d-flex.justify-content-center,
+                #pcStatsContainer {
                     flex-wrap: nowrap !important;
                     gap: 0.25rem !important;
                     justify-content: space-between !important;
-                    margin-top: 0.5rem !important; /* Espacio mínimo debajo de la línea */
+                    margin-top: 0 !important; 
+                    margin-bottom: 0 !important;
                 }
                 
                 /* Reducir el padding y tamaño de fuente, y repartir el espacio equitativamente */
@@ -73,11 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     display: flex !important;
                     align-items: center !important;
                     justify-content: center !important;
-                }
-                
-                /* Ajustar los márgenes de la tarjeta para ganar espacio interior */
-                #gameOverModal .modal-body {
-                    padding: 0.75rem 0.5rem !important;
+                    margin: 0 !important;
                 }
             }
         `;
@@ -220,7 +226,8 @@ window.startLocalGame = (type, vsPC = false, difficulty = null, startingTurn = n
         gameType: type, 
         status: 'playing', 
         currentLocalTurn: finalStarter,     
-        gameState: getInitialState(type) 
+        gameState: getInitialState(type),
+        confettiFired: false // Control de confeti
     };
     
     document.getElementById('lobby-view').style.display = 'none'; 
@@ -313,6 +320,12 @@ window.renderGameBoard = () => {
                     // Adorno Dorado/Amarillo de Victoria
                     indicatorText = `¡Felicidades ${myName}! Has ganado la partida.`;
                     indicatorClass = "win-text-effect";
+                    
+                    // 🚀 DISPARAR CONFETI
+                    if (!window.currentGame.confettiFired && typeof confetti === 'function') {
+                        confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, zIndex: 1060 });
+                        window.currentGame.confettiFired = true;
+                    }
                 } else {
                     // Adorno Rojo de Derrota
                     indicatorText = `¡Has perdido la partida contra ${oppName}!`;
@@ -326,6 +339,12 @@ window.renderGameBoard = () => {
                     if (wNum === 1) {
                         indicatorText = `¡Felicidades! Has ganado la partida.`;
                         indicatorClass = "win-text-effect";
+                        
+                        // 🚀 DISPARAR CONFETI
+                        if (!window.currentGame.confettiFired && typeof confetti === 'function') {
+                            confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, zIndex: 1060 });
+                            window.currentGame.confettiFired = true;
+                        }
                     } else {
                         indicatorText = `¡Has perdido la partida contra la PC!`;
                         indicatorClass = "lose-text-effect";
@@ -333,6 +352,12 @@ window.renderGameBoard = () => {
                 } else {
                     indicatorText = `¡Felicidades! Jugador ${wNum} (Fichas ${colorGanador}) ha ganado.`;
                     indicatorClass = "win-text-effect";
+                    
+                    // 🚀 DISPARAR CONFETI (Modo local 1v1 siempre explota)
+                    if (!window.currentGame.confettiFired && typeof confetti === 'function') {
+                        confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, zIndex: 1060 });
+                        window.currentGame.confettiFired = true;
+                    }
                 }
             }
         } else {

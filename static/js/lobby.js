@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
  * actualizada de usuarios conectados y desconectados.
  */
 window.solicitarListaJugadores = () => {
-    if(!estaAutenticado) { alert("Debes iniciar sesión para ver los jugadores."); return; }
+    if(!estaAutenticado) { console.warn("Debes iniciar sesión para ver los jugadores."); return; }
     document.getElementById('playersListContainer').innerHTML = '<div class="text-center p-4"><div class="spinner-border text-info"></div></div>';
     if(playersModalInst) playersModalInst.show();
     socket.emit('solicitar_jugadores');
@@ -115,11 +115,11 @@ function getOrCreateWaitingModal() {
         const modalHtml = `
         <div class="modal fade" id="waitingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
             <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content glass-modal border-info text-center shadow-lg" style="background: rgba(20, 20, 30, 0.95); backdrop-filter: blur(12px);">
+                <div class="modal-content glass-modal border-warning text-center shadow-lg" style="background: rgba(20, 20, 30, 0.95); backdrop-filter: blur(12px);">
                     <div class="modal-body py-5">
-                        <div class="spinner-grow text-info mb-4" style="width: 3rem; height: 3rem;" role="status"></div>
+                        <div class="spinner-grow text-warning mb-4 shadow" style="width: 3.5rem; height: 3.5rem;" role="status"></div>
                         <h4 class="fw-bold text-white mb-3" id="waitingModalTitle">Enviando Reto...</h4>
-                        <p class="text-muted" id="waitingModalMessage">Esperando respuesta del oponente...</p>
+                        <p class="text-light" id="waitingModalMessage" style="font-size: 1.1rem;">Esperando respuesta...</p>
                         <button class="btn btn-outline-danger rounded-pill mt-4 px-4 shadow-sm" onclick="cancelarRetoEnviado()">
                             <i class="bi bi-x-circle"></i> Cancelar Reto
                         </button>
@@ -141,10 +141,12 @@ window.enviarReto = (gameType) => {
         game_type: gameType
     });
 
+    let gameName = gameType === 'gato' ? 'Gato' : (gameType === '4linea' ? '4 en Línea' : (gameType === 'damas' ? 'Damas' : (gameType === 'reversi' ? 'Reversi' : 'Gomoku')));
+
     // Desplegamos el Modal Glassmorphism de espera
     if (!waitingModalInst) waitingModalInst = getOrCreateWaitingModal();
-    document.getElementById('waitingModalTitle').innerHTML = `Reto de ${gameType.toUpperCase()}`;
-    document.getElementById('waitingModalMessage').innerHTML = `Esperando a que <strong>${targetUserToChallenge}</strong> acepte tu desafío...`;
+    document.getElementById('waitingModalTitle').innerHTML = `<i class="bi bi-hourglass-split"></i> Reto de ${gameName}`;
+    document.getElementById('waitingModalMessage').innerHTML = `El reto ha sido enviado a <strong class="text-info">${targetUserToChallenge}</strong>.<br><span class="text-muted small">Esperando respuesta...</span>`;
     waitingModalInst.show();
 };
 
@@ -164,7 +166,7 @@ socket.on('recibir_reto', (data) => {
     const retadorText = document.getElementById('retadorNombre');
     
     if (overlay && retadorText) {
-        retadorText.innerHTML = `¡<strong>${data.retador}</strong> te ha desafiado a una partida de <strong>${gameName}</strong>!`;
+        retadorText.innerHTML = `¡<strong class="text-info">${data.retador}</strong> te ha desafiado a jugar <strong class="text-warning">${gameName}</strong>!`;
         overlay.style.display = 'flex';
     }
 });
@@ -224,18 +226,24 @@ socket.on('reto_rechazado', (data) => {
     
     // Aquí soportamos si el servidor envía 'target' o 'retado'
     let usernameRechazador = data.target || data.retado || "El jugador";
-    document.getElementById('rejectedModalMessage').innerHTML = `<strong>${usernameRechazador}</strong> ha rechazado tu desafío.`;
+    document.getElementById('rejectedModalMessage').innerHTML = `<strong class="text-info">${usernameRechazador}</strong> ha rechazado tu desafío.`;
     const rejectedModalInst = new bootstrap.Modal(rejectedModalEl);
     rejectedModalInst.show();
     
     targetUserToChallenge = null;
 });
 
-// Cerramos nuestra propia ventana de espera de forma limpia cuando el juego inicia
+// 🚀 FIX: Destrucción forzada de ventanas de espera al iniciar la partida
 socket.on('game_started', () => {
     if (waitingModalInst) {
         waitingModalInst.hide();
     }
+    
+    // Forzamos la limpieza del DOM para quitar cualquier bloqueo (Backdrop oscuro)
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
 });
 
 // ==========================================
@@ -250,7 +258,7 @@ window.currentStatsPage = 1;
  */
 window.verMiPerfil = () => {
     if (!estaAutenticado) {
-        alert("Debes iniciar sesión para ver tu perfil.");
+        console.warn("Debes iniciar sesión para ver tu perfil.");
         return;
     }
     // Ocultamos otros modales si estuvieran abiertos
