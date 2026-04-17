@@ -1,16 +1,38 @@
 // Nombre: logicaIA.js
-// Ubicación: static/js/
+// Ubicación / Location: static/js/
 
 // ==========================================
-// [MÓDULO: AI MONOLÍTICO] - CEREBRO DE LA PC
+// [MÓDULO: AUDIO] - SINTETIZADOR DE SONIDO (Web Audio API)
+// [AUDIO MODULE] - SOUND SYNTHESIZER
 // ==========================================
+window.playMoveSound = () => {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        // Tipo de onda que simula madera/plástico (un "Pop" suave)
+        // Wave type simulating wood/plastic (a soft "Pop")
+        osc.type = 'sine'; 
+        osc.frequency.setValueAtTime(500, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.1);
+        
+        gain.gain.setValueAtTime(0.7, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.1);
+    } catch(e) { console.warn("Audio desactivado o no soportado / Audio disabled or unsupported"); }
+};
 
-/**
- * CEREBRO DE LA PC. Es la Inteligencia Artificial de la aplicación.
- * Evalúa el tablero actual dependiendo del juego e invoca 'attemptMove' 
- * para ejecutar el movimiento decidido simulando un clic humano.
- * Usa heurística básica y evaluación predictiva de victoria/bloqueo de 1 nivel.
- */
+// ==========================================
+// [MÓDULO: AI MONOLÍTICO] - CEREBRO DE LA PC / PC BRAIN
+// ==========================================
 window.makePCMove = () => {
     if (!window.currentGame || window.currentGame.status !== 'playing' || window.currentGame.currentLocalTurn !== 2) return;
     
@@ -21,38 +43,33 @@ window.makePCMove = () => {
     let difficulty = window.currentGame.difficulty || 'normal';
 
     // ==========================================
-    // SISTEMA DE DIFICULTAD (Probabilidad de Error)
+    // SISTEMA DE DIFICULTAD / DIFFICULTY SYSTEM
     // ==========================================
     let probabilidadError = 0;
-    if (difficulty === 'facil') probabilidadError = 0.60; // 60% de hacer una jugada tonta
-    if (difficulty === 'normal') probabilidadError = 0.15; // 15% de hacer una jugada tonta (más humano)
-    if (difficulty === 'dificil') probabilidadError = 0.0; // 0% de error. Juega a ganar siempre.
+    if (difficulty === 'facil') probabilidadError = 0.60; // 60% chance of making a silly move
+    if (difficulty === 'normal') probabilidadError = 0.15; // 15% chance (more human-like)
+    if (difficulty === 'dificil') probabilidadError = 0.0; // 0% error. Always plays to win.
     
     let cometerError = Math.random() < probabilidadError;
 
     if (type === 'gato') {
-        let win = findWinningMoveGato(state.board, 2);
-        let block = findWinningMoveGato(state.board, 1);
-        
+        let win = typeof findWinningMoveGato === 'function' ? findWinningMoveGato(state.board, 2) : -1;
+        let block = typeof findWinningMoveGato === 'function' ? findWinningMoveGato(state.board, 1) : -1;
         let empty = [];
         state.board.forEach((c, i) => { if(c === 0) empty.push(i); });
         
-        // Si no comete error, busca ganar o bloquear primero
+        // Si no comete error, busca ganar o bloquear / If no error, try to win or block
         if (!cometerError && win !== -1) chosenIndex = win;
         else if (!cometerError && block !== -1) chosenIndex = block;
-        else if (!cometerError && state.board[4] === 0) chosenIndex = 4; // Tomar el centro es la mejor estrategia
-        else if (empty.length > 0) {
-            // Jugada aleatoria
-            chosenIndex = empty[Math.floor(Math.random() * empty.length)];
-        }
+        else if (!cometerError && state.board[4] === 0) chosenIndex = 4; 
+        else if (empty.length > 0) chosenIndex = empty[Math.floor(Math.random() * empty.length)];
     } 
     else if (type === '4linea') {
         let bestCol = -1;
         let validCols = [];
         for(let c=0; c<7; c++) { if(state.board[c] === 0) validCols.push(c); }
         
-        if (!cometerError) {
-            // 1. ¿Puede la PC ganar en el siguiente turno?
+        if (!cometerError && typeof getC4DropRow === 'function' && typeof checkC4Win === 'function') {
             for(let c of validCols) {
                 let r = getC4DropRow(state.board, c);
                 if(r !== -1) {
@@ -61,7 +78,6 @@ window.makePCMove = () => {
                     if(res && res.p === 2) { bestCol = c; break; }
                 }
             }
-            // 2. ¿Necesita bloquear al jugador?
             if(bestCol === -1) {
                 for(let c of validCols) {
                     let r = getC4DropRow(state.board, c);
@@ -74,19 +90,14 @@ window.makePCMove = () => {
             }
         }
         
-        if(bestCol !== -1) {
-            chosenIndex = bestCol; // El índice horizontal servirá
-        } else if(validCols.length > 0) {
-            chosenIndex = validCols[Math.floor(Math.random() * validCols.length)];
-        }
+        if(bestCol !== -1) chosenIndex = bestCol;
+        else if(validCols.length > 0) chosenIndex = validCols[Math.floor(Math.random() * validCols.length)];
     } 
     else if (type === 'gomoku') {
         let winIndex = -1; let blockIndex = -1;
         let candidates = []; let empty = [];
-        
         state.board.forEach((c, i) => { if(c === 0) empty.push(i); });
         
-        // Optimización: Solo evaluar casillas adyacentes a las fichas existentes
         for(let i of empty) {
             let r = Math.floor(i/15), c = i%15;
             let hasNeighbor = false;
@@ -100,17 +111,14 @@ window.makePCMove = () => {
             if(hasNeighbor) candidates.push(i);
         }
         
-        // Si el tablero está vacío, tomar el centro
         if(candidates.length === 0 && empty.length > 0) candidates.push(112); 
         
-        if (!cometerError) {
-            // 1. Buscar ganar
+        if (!cometerError && typeof checkGomokuWin === 'function') {
             for(let i of candidates) {
                 let tempBoard = [...state.board]; tempBoard[i] = 2;
                 let res = checkGomokuWin(tempBoard); 
                 if(res && res.p === 2) { winIndex = i; break; }
             }
-            // 2. Buscar bloquear
             if(winIndex === -1) {
                 for(let i of candidates) {
                     let tempBoard = [...state.board]; tempBoard[i] = 1;
@@ -127,147 +135,154 @@ window.makePCMove = () => {
     else if (type === 'reversi') {
         let validMoves = [];
         for(let i=0; i<64; i++) {
-            if(getReversiFlips(state.board, i, pNum).length > 0) validMoves.push(i);
+            if(typeof getReversiFlips === 'function' && getReversiFlips(state.board, i, pNum).length > 0) validMoves.push(i);
         }
         if(validMoves.length > 0) {
             const corners = [0, 7, 56, 63];
             let cornerFound = validMoves.find(m => corners.includes(m));
-            
-            // Priorizar las esquinas si no está cometiendo errores
-            if(!cometerError && cornerFound !== undefined) {
-                chosenIndex = cornerFound;
-            } else {
-                chosenIndex = validMoves[Math.floor(Math.random() * validMoves.length)];
-            }
+            if(!cometerError && cornerFound !== undefined) chosenIndex = cornerFound;
+            else chosenIndex = validMoves[Math.floor(Math.random() * validMoves.length)];
         } else {
-            // La PC no tiene movimientos, pasa turno
             window.currentGame.currentLocalTurn = 1;
-            renderGameBoard();
+            if(typeof window.renderGameBoard === 'function') window.renderGameBoard();
             return;
         }
     } 
     else if (type === 'damas') {
-        // Si la PC está haciendo un salto múltiple
-        if (localSelection.multiJumping && localSelection.selectedPiece !== null) {
+        if (typeof localSelection !== 'undefined' && localSelection.multiJumping && localSelection.selectedPiece !== null) {
             let jumps = localSelection.validMoves;
             if (jumps.length > 0) chosenIndex = jumps[Math.floor(Math.random() * jumps.length)];
         } else {
-            let possibleMoves = [];
-            let pieces = [];
+            let possibleMoves = []; let pieces = [];
             state.board.forEach((c, i) => { if(c === pNum || c === pNum + 2) pieces.push(i); });
             
-            pieces.forEach(p => {
-                let jumps = getValidCheckersMoves(state.board, p, pNum, true);
-                if(jumps.length > 0) {
-                    jumps.forEach(j => possibleMoves.push({start: p, end: j, isJump: true}));
-                } else {
-                    let normals = getValidCheckersMoves(state.board, p, pNum, false);
-                    normals.forEach(n => possibleMoves.push({start: p, end: n, isJump: false}));
-                }
-            });
+            if (typeof getValidCheckersMoves === 'function') {
+                pieces.forEach(p => {
+                    let jumps = getValidCheckersMoves(state.board, p, pNum, true);
+                    if(jumps.length > 0) {
+                        jumps.forEach(j => possibleMoves.push({start: p, end: j, isJump: true}));
+                    } else {
+                        let normals = getValidCheckersMoves(state.board, p, pNum, false);
+                        normals.forEach(n => possibleMoves.push({start: p, end: n, isJump: false}));
+                    }
+                });
+            }
             
-            // Obligar a saltar/comer si es posible
             let jumpsOnly = possibleMoves.filter(m => m.isJump);
             if(jumpsOnly.length > 0) possibleMoves = jumpsOnly;
 
             if(possibleMoves.length > 0) {
                 let move;
-                // IA Avanzada para Damas en Difícil: Prioriza moverse por las orillas (seguro) o avanzar hacia la coronación
                 if (!cometerError && !possibleMoves[0].isJump) {
                     possibleMoves.sort((a, b) => {
                         let rA = Math.floor(a.end / 8), cA = a.end % 8;
                         let rB = Math.floor(b.end / 8), cB = b.end % 8;
-                        let scoreA = rA + (cA === 0 || cA === 7 ? 1 : 0); // Fila + punto extra por estar en el borde
+                        let scoreA = rA + (cA === 0 || cA === 7 ? 1 : 0);
                         let scoreB = rB + (cB === 0 || cB === 7 ? 1 : 0);
-                        return scoreB - scoreA; // Ordena de mayor a menor puntaje
+                        return scoreB - scoreA;
                     });
-                    move = possibleMoves[0]; // Selecciona la mejor opción de avance
+                    move = possibleMoves[0];
                 } else {
-                    // Selecciona un movimiento al azar
                     move = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
                 }
                 
-                attemptMove(move.start, pNum, true); // La PC selecciona la ficha visualmente
-                setTimeout(() => attemptMove(move.end, pNum, true), 500); // 500ms después hace el movimiento
+                window.attemptMove(move.start, pNum, true); 
+                setTimeout(() => window.attemptMove(move.end, pNum, true), 500); 
                 return;
             }
         }
     }
 
     if (chosenIndex !== -1) {
-        attemptMove(chosenIndex, pNum, true);
+        window.attemptMove(chosenIndex, pNum, true);
     }
 };
 
 // ==========================================
-// [MÓDULO: LÓGICA DE TURNOS MONOLÍTICA]
+// [MÓDULO: LÓGICA DE TURNOS MONOLÍTICA] / TURN LOGIC
 // ==========================================
-
-/**
- * Corazón del juego. Se ejecuta cada vez que un jugador (o la PC) hace clic
- * en el tablero. Ejecuta la lógica del juego actual, cambia los turnos y avisa
- * por WebSockets (si es online) o llama al bot (si es vs PC).
- */
 window.attemptMove = (index, myPlayerNum, isMyTurn) => {
-    // BLOQUEO DE UI: Si no es el turno, o si estamos jugando vs PC y es el turno de la máquina (2)
     if(!isMyTurn || window.currentGame.status !== 'playing' || (window.currentGame.mode === 'local' && window.currentGame.vsPC && window.currentGame.currentLocalTurn === 2 && myPlayerNum === 1)) {
         return; 
     }
     
     let state = JSON.parse(JSON.stringify(window.currentGame.gameState)); 
-    let type = window.currentGame.gameType; let validMove = false; let endTurn = true; 
+    let type = window.currentGame.gameType; let validMove = false; let endTurn = true; let flips = [];
 
     if(type === 'gato') {
         if(state.board[index] === 0) { state.board[index] = myPlayerNum; validMove = true; }
     } else if (type === '4linea') {
-        for(let r=5; r>=0; r--) { let i = r*7 + index; if(state.board[i] === 0) { state.board[i] = myPlayerNum; validMove = true; break; } }
+        for(let r=5; r>=0; r--) { 
+            let i = r*7 + index; 
+            if(state.board[i] === 0) { 
+                state.board[i] = myPlayerNum; 
+                validMove = true; 
+                index = i; 
+                break; 
+            } 
+        }
     } else if (type === 'gomoku') {
         if(state.board[index] === 0) { state.board[index] = myPlayerNum; validMove = true; }
     } else if (type === 'reversi') {
-        let flips = getReversiFlips(state.board, index, myPlayerNum);
-        if (flips.length > 0) {
-            state.board[index] = myPlayerNum; flips.forEach(i => state.board[i] = myPlayerNum); validMove = true;
+        if (typeof getReversiFlips === 'function') {
+            flips = getReversiFlips(state.board, index, myPlayerNum);
+            if (flips.length > 0) {
+                state.board[index] = myPlayerNum; flips.forEach(i => state.board[i] = myPlayerNum); validMove = true;
+            }
         }
     } else if (type === 'damas') {
-        if (!localSelection.multiJumping && (state.board[index] === myPlayerNum || state.board[index] === myPlayerNum + 2)) {
-            localSelection.selectedPiece = index; localSelection.validMoves = getValidCheckersMoves(state.board, index, myPlayerNum, false);
-            renderGameBoard(); return; 
-        } else if (localSelection.selectedPiece !== null && localSelection.validMoves.includes(index)) {
-            let isJump = Math.abs(Math.floor(localSelection.selectedPiece / 8) - Math.floor(index / 8)) === 2;
-            if (isJump) { 
-                let r1 = Math.floor(localSelection.selectedPiece / 8), c1 = localSelection.selectedPiece % 8; let r2 = Math.floor(index / 8), c2 = index % 8;
-                state.board[((r1 + r2) / 2) * 8 + ((c1 + c2) / 2)] = 0; 
+        if (typeof localSelection !== 'undefined') {
+            if (!localSelection.multiJumping && (state.board[index] === myPlayerNum || state.board[index] === myPlayerNum + 2)) {
+                window.playMoveSound(); // Sonido al tocar tu ficha / Sound on piece selection
+                localSelection.selectedPiece = index; 
+                if (typeof getValidCheckersMoves === 'function') {
+                    localSelection.validMoves = getValidCheckersMoves(state.board, index, myPlayerNum, false);
+                }
+                if (typeof window.renderGameBoard === 'function') window.renderGameBoard(); 
+                return; 
+            } else if (localSelection.selectedPiece !== null && localSelection.validMoves.includes(index)) {
+                let isJump = Math.abs(Math.floor(localSelection.selectedPiece / 8) - Math.floor(index / 8)) === 2;
+                if (isJump) { 
+                    let r1 = Math.floor(localSelection.selectedPiece / 8), c1 = localSelection.selectedPiece % 8; let r2 = Math.floor(index / 8), c2 = index % 8;
+                    state.board[((r1 + r2) / 2) * 8 + ((c1 + c2) / 2)] = 0; 
+                }
+                state.board[index] = state.board[localSelection.selectedPiece]; state.board[localSelection.selectedPiece] = 0;
+                let promoted = false; 
+                if (myPlayerNum === 1 && Math.floor(index / 8) === 0 && state.board[index] === 1) { state.board[index] = 3; promoted = true; }
+                if (myPlayerNum === 2 && Math.floor(index / 8) === 7 && state.board[index] === 2) { state.board[index] = 4; promoted = true; }
+                if (isJump && !promoted) {
+                    let furtherJumps = typeof getValidCheckersMoves === 'function' ? getValidCheckersMoves(state.board, index, myPlayerNum, true) : [];
+                    if (furtherJumps.length > 0) { localSelection.selectedPiece = index; localSelection.validMoves = furtherJumps; localSelection.multiJumping = true; endTurn = false; validMove = true; } else { window.resetSelection(); validMove = true; }
+                } else { window.resetSelection(); validMove = true; }
             }
-            state.board[index] = state.board[localSelection.selectedPiece]; state.board[localSelection.selectedPiece] = 0;
-            let promoted = false; 
-            if (myPlayerNum === 1 && Math.floor(index / 8) === 0 && state.board[index] === 1) { state.board[index] = 3; promoted = true; }
-            if (myPlayerNum === 2 && Math.floor(index / 8) === 7 && state.board[index] === 2) { state.board[index] = 4; promoted = true; }
-            if (isJump && !promoted) {
-                let furtherJumps = getValidCheckersMoves(state.board, index, myPlayerNum, true);
-                if (furtherJumps.length > 0) { localSelection.selectedPiece = index; localSelection.validMoves = furtherJumps; localSelection.multiJumping = true; endTurn = false; validMove = true; } else { resetSelection(); validMove = true; }
-            } else { resetSelection(); validMove = true; }
         }
     }
 
-    // Procesamiento posterior del movimiento si fue válido
     if(validMove) {
+        // 🚀 Reproducimos sonido localmente SIN almacenar variables de animación
+        // Play sound locally WITHOUT saving animation variables
+        window.playMoveSound();
+        
+        // Se han eliminado: window.currentGame.lastMoveIndex y window.currentGame.lastFlips 
+        // para desactivar el efecto de animación visual.
+
         let winnerNum = 0;
         let winningLine = [];
 
         if(type === 'gato') {
-            let res = checkTicTacToeWin(state.board);
+            let res = typeof checkTicTacToeWin === 'function' ? checkTicTacToeWin(state.board) : null;
             if(res) { winnerNum = res.p; winningLine = res.line; }
         } else if (type === '4linea') { 
-            let res = checkC4Win(state.board);
+            let res = typeof checkC4Win === 'function' ? checkC4Win(state.board) : null;
             if(res) { winnerNum = res.p; winningLine = res.line; }
         } else if (type === 'gomoku') { 
-            let res = checkGomokuWin(state.board);
+            let res = typeof checkGomokuWin === 'function' ? checkGomokuWin(state.board) : null;
             if(res) { winnerNum = res.p; winningLine = res.line; }
         } else if (type === 'reversi') {
             if (endTurn) {
                 let nextP = myPlayerNum === 1 ? 2 : 1; let nextHasMoves = false; let myHasMoves = false;
                 for(let i=0; i<64; i++) {
-                    if (state.board[i] === 0) {
+                    if (state.board[i] === 0 && typeof getReversiFlips === 'function') {
                         if (getReversiFlips(state.board, i, nextP).length > 0) nextHasMoves = true;
                         if (getReversiFlips(state.board, i, myPlayerNum).length > 0) myHasMoves = true;
                     }
@@ -289,7 +304,7 @@ window.attemptMove = (index, myPlayerNum, isMyTurn) => {
                 let nextP = myPlayerNum === 1 ? 2 : 1;
                 let nextHasMoves = false;
                 for(let i=0; i<64; i++) {
-                    if (state.board[i] === nextP || state.board[i] === nextP + 2) {
+                    if ((state.board[i] === nextP || state.board[i] === nextP + 2) && typeof getValidCheckersMoves === 'function') {
                         if (getValidCheckersMoves(state.board, i, nextP, true).length > 0 || 
                             getValidCheckersMoves(state.board, i, nextP, false).length > 0) {
                             nextHasMoves = true;
@@ -309,30 +324,42 @@ window.attemptMove = (index, myPlayerNum, isMyTurn) => {
             if (endTurn && winnerNum === 0) window.currentGame.currentLocalTurn = window.currentGame.currentLocalTurn === 1 ? 2 : 1;
             if (winnerNum !== 0) {
                 window.currentGame.winningLine = winningLine;
-                handleGameOverResult(winnerNum);
+                window.handleGameOverResult(winnerNum);
             }
             
-            renderGameBoard();
+            if (typeof window.renderGameBoard === 'function') window.renderGameBoard();
 
             if (window.currentGame.vsPC && window.currentGame.currentLocalTurn === 2 && window.currentGame.status === 'playing') {
                 let delay = endTurn ? 800 : 500; 
-                setTimeout(makePCMove, delay);
+                setTimeout(window.makePCMove, delay);
             }
         } else if (window.currentGame.mode === 'multi') {
-            socket.emit('make_move', { room: window.currentGame.roomId, gameState: state, winnerNum: winnerNum, endTurn: endTurn, winningLine: winningLine });
+            if (typeof socket !== 'undefined') {
+                socket.emit('make_move', { 
+                    room: window.currentGame.roomId, 
+                    gameState: state, 
+                    winnerNum: winnerNum, 
+                    endTurn: endTurn, 
+                    winningLine: winningLine,
+                    // Se envía un indicador de movimiento solo para detonar el sonido en el rival
+                    lastMoveIndex: index 
+                });
+            }
             window.currentGame.gameState = state;
             if (endTurn && winnerNum === 0) { window.currentGame.turn = window.currentGame.turn === 1 ? 2 : 1; }
             if (winnerNum !== 0) {
                 window.currentGame.winningLine = winningLine;
-                handleGameOverResult(winnerNum);
+                window.handleGameOverResult(winnerNum);
             }
-            renderGameBoard();
+            if (typeof window.renderGameBoard === 'function') window.renderGameBoard();
         }
     }
 };
 
 window.resetSelection = () => { 
-    localSelection = { selectedPiece: null, validMoves: [], multiJumping: false }; 
+    if (typeof localSelection !== 'undefined') {
+        localSelection = { selectedPiece: null, validMoves: [], multiJumping: false }; 
+    }
 };
 
 window.handleGameOverResult = (winnerNum) => {
@@ -343,13 +370,13 @@ window.handleGameOverResult = (winnerNum) => {
     let msgElement = document.getElementById('goMessage');
 
     if(winnerNum === -1) {
-        modalHeader.className = "modal-header border-bottom-0 justify-content-center text-warning";
+        if(modalHeader) modalHeader.className = "modal-header border-bottom-0 justify-content-center text-warning";
         if (msgElement) {
-            msgElement.innerText = "¡Ha sido un Empate!";
+            msgElement.innerText = "¡Ha sido un Empate! / It's a Tie!";
             msgElement.style.display = "block";
         }
     } else {
-        modalHeader.className = "modal-header border-bottom-0 justify-content-center text-info";
+        if(modalHeader) modalHeader.className = "modal-header border-bottom-0 justify-content-center text-info";
         if (msgElement) {
             msgElement.style.display = "none";
         }
@@ -391,7 +418,7 @@ window.handleGameOverResult = (winnerNum) => {
         }
     }
 
-    if(bsGameOverModal) {
+    if(typeof bsGameOverModal !== 'undefined' && bsGameOverModal) {
         bsGameOverModal.show();
         setTimeout(() => {
             document.body.classList.remove('modal-open');
@@ -406,70 +433,80 @@ window.handleGameOverResult = (winnerNum) => {
     }
 };
 
-window.confirmSurrender = () => { if(confirm("¿Estás seguro de que deseas abandonar la partida actual?")) { window.closeGameOver(); } };
+window.confirmSurrender = () => { if(confirm("¿Estás seguro de que deseas abandonar la partida actual? / Are you sure you want to surrender?")) { window.closeGameOver(); } };
 
 window.closeGameOver = () => { 
-    if(bsGameOverModal) bsGameOverModal.hide(); 
+    if(typeof bsGameOverModal !== 'undefined' && bsGameOverModal) bsGameOverModal.hide(); 
     
     document.body.classList.remove('modal-open');
     document.body.style.overflow = '';
     document.body.style.paddingRight = '';
 
     window.currentGame = null; 
-    document.getElementById('game-view').style.display = 'none'; 
-    document.getElementById('lobby-view').style.display = 'flex'; 
+    let gameView = document.getElementById('game-view');
+    let lobbyView = document.getElementById('lobby-view');
+    if(gameView) gameView.style.display = 'none'; 
+    if(lobbyView) lobbyView.style.display = 'flex'; 
     
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 // [MÓDULO: GAME_CORE] Escucha los movimientos recibidos del servidor para juego Online
-socket.on('update_board', (data) => {
-    if (window.currentGame && window.currentGame.mode === 'multi') {
-        window.currentGame.gameState = data.gameState;
-        if (data.endTurn && data.winnerNum === 0) { window.currentGame.turn = window.currentGame.turn === 1 ? 2 : 1; }
-        if (data.winnerNum !== 0) {
-            window.currentGame.winningLine = data.winningLine || [];
+if (typeof socket !== 'undefined') {
+    socket.on('update_board', (data) => {
+        if (window.currentGame && window.currentGame.mode === 'multi') {
+            window.currentGame.gameState = data.gameState;
+            
+            // 🚀 Reproducimos el sonido al recibir la confirmación de la jugada enemiga
+            if (data.lastMoveIndex !== undefined && typeof window.playMoveSound === 'function') window.playMoveSound();
+
+            if (data.endTurn && data.winnerNum === 0) { window.currentGame.turn = window.currentGame.turn === 1 ? 2 : 1; }
+            if (data.winnerNum !== 0) {
+                window.currentGame.winningLine = data.winningLine || [];
+            }
+            
+            // 🚀 CORRECCIÓN VITAL: Ejecutar la derrota/victoria ANTES de dibujar el tablero
+            // para que los carteles rojos/dorados aparezcan inmediatamente al perdedor.
+            if (data.winnerNum !== 0 && typeof window.handleGameOverResult === 'function') {
+                window.handleGameOverResult(data.winnerNum);
+            }
+            
+            if (typeof window.renderGameBoard === 'function') window.renderGameBoard(); 
         }
-        renderGameBoard(); 
-        if (data.winnerNum !== 0) handleGameOverResult(data.winnerNum);
-    }
-});
+    });
 
-// [MÓDULO: GAME_CORE] Al recibir que el servidor emparejó a los 2, carga el tablero vacío.
-socket.on('game_started', (data) => {
-    
-    // 🚀 LIMPIEZA FORZADA: Destruimos cualquier modal o alerta visual que haya quedado bloqueando la pantalla
-    try {
-        if (typeof Swal !== 'undefined') { Swal.close(); }
-        else if (typeof swal !== 'undefined') { swal.close(); }
-        
-        if (typeof selectGameModalInst !== 'undefined' && selectGameModalInst) selectGameModalInst.hide();
-        if (typeof playersModalInst !== 'undefined' && playersModalInst) playersModalInst.hide();
-        if (typeof pcConfigModalInst !== 'undefined' && pcConfigModalInst) pcConfigModalInst.hide();
-        
-        let overlay = document.getElementById('retoOverlay');
-        if (overlay) overlay.style.display = 'none';
-        
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
-    } catch (e) {
-        console.error("Error limpiando la interfaz:", e);
-    }
+    socket.on('game_started', (data) => {
+        try {
+            if (typeof Swal !== 'undefined') { Swal.close(); }
+            else if (typeof swal !== 'undefined') { swal.close(); }
+            
+            if (typeof selectGameModalInst !== 'undefined' && selectGameModalInst) selectGameModalInst.hide();
+            if (typeof playersModalInst !== 'undefined' && playersModalInst) playersModalInst.hide();
+            if (typeof pcConfigModalInst !== 'undefined' && pcConfigModalInst) pcConfigModalInst.hide();
+            
+            let overlay = document.getElementById('retoOverlay');
+            if (overlay) overlay.style.display = 'none';
+            
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        } catch (e) {
+            console.error("Error limpiando la interfaz / Error cleaning UI:", e);
+        }
 
-    // Iniciamos la partida
-    window.currentGame = { mode: 'multi', gameType: data.gameType, status: 'playing', roomId: data.roomId, turn: 1, myPlayerNum: data.myPlayerNum, opponent: data.opponent };
-    window.currentGame.gameState = getInitialState(data.gameType);
-    
-    let lobbyView = document.getElementById('lobby-view');
-    let gameView = document.getElementById('game-view');
-    if (lobbyView) lobbyView.style.display = 'none';
-    if (gameView) gameView.style.display = 'block';
-    
-    let btnStats = document.getElementById('btnPostGameStats');
-    if (btnStats) btnStats.style.display = 'none';
-    
-    renderGameBoard();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-});
+        window.currentGame = { mode: 'multi', gameType: data.gameType, status: 'playing', roomId: data.roomId, turn: 1, myPlayerNum: data.myPlayerNum, opponent: data.opponent };
+        window.currentGame.gameState = typeof getInitialState === 'function' ? getInitialState(data.gameType) : { board: Array(64).fill(0) };
+        
+        let lobbyView = document.getElementById('lobby-view');
+        let gameView = document.getElementById('game-view');
+        if (lobbyView) lobbyView.style.display = 'none';
+        if (gameView) gameView.style.display = 'block';
+        
+        let btnStats = document.getElementById('btnPostGameStats');
+        if (btnStats) btnStats.style.display = 'none';
+        
+        if (typeof window.renderGameBoard === 'function') window.renderGameBoard();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+}
