@@ -5,7 +5,84 @@ window.currentGame = null;
 let bsGameOverModal;
 
 document.addEventListener("DOMContentLoaded", () => {
-    if (document.getElementById('gameOverModal')) bsGameOverModal = new bootstrap.Modal(document.getElementById('gameOverModal'));
+    const goModalEl = document.getElementById('gameOverModal');
+    if (goModalEl) {
+        bsGameOverModal = new bootstrap.Modal(goModalEl);
+        
+        // 🚀 FIX: Buscar y cambiar "Volver a jugar" por "Retar" para ahorrar espacio en móvil
+        const elementos = goModalEl.querySelectorAll('*');
+        elementos.forEach(el => {
+            el.childNodes.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE && /Volver a [Jj]ugar/i.test(node.nodeValue)) {
+                    node.nodeValue = node.nodeValue.replace(/Volver a [Jj]ugar/i, 'Retar');
+                }
+            });
+        });
+    }
+
+    // 🚀 FIX: Inyección de CSS para separación de 10px y reparación del desorden en móviles
+    if (!document.getElementById('mobileGameOverFix')) {
+        const cssFix = document.createElement('style');
+        cssFix.id = 'mobileGameOverFix';
+        cssFix.innerHTML = `
+            /* 1. Separación estricta de 10px respecto al tablero de juego */
+            #gameOverModal {
+                margin-top: 10px !important;
+            }
+            
+            /* 2. Ajustes exclusivos para vista de Celulares */
+            @media (max-width: 576px) {
+                /* Eliminar márgenes gigantes por defecto de Bootstrap para juntar los elementos */
+                #gameOverModal .mt-4, #gameOverModal .mb-4, #gameOverModal .my-4 {
+                    margin-top: 0.25rem !important;
+                    margin-bottom: 0.25rem !important;
+                }
+
+                /* Agregar la línea divisoria <hr> debajo del título de Fin de Partida */
+                #goHeader::after, 
+                #gameOverModal .modal-header::after {
+                    content: "";
+                    display: block;
+                    width: 100%;
+                    height: 1px;
+                    background-color: rgba(255, 255, 255, 0.15);
+                    margin-top: 0.5rem;
+                }
+
+                #goHeader, #gameOverModal .modal-header {
+                    padding-bottom: 0 !important;
+                    border-bottom: none !important;
+                    flex-direction: column;
+                }
+
+                /* Forzar a que los botones se mantengan siempre en una sola línea horizontal */
+                #gameOverModal .modal-body > div:last-child,
+                #gameOverModal .d-flex.justify-content-center {
+                    flex-wrap: nowrap !important;
+                    gap: 0.25rem !important;
+                    justify-content: space-between !important;
+                    margin-top: 0.5rem !important; /* Espacio mínimo debajo de la línea */
+                }
+                
+                /* Reducir el padding y tamaño de fuente, y repartir el espacio equitativamente */
+                #gameOverModal .btn {
+                    font-size: 0.75rem !important;
+                    padding: 0.4rem 0.2rem !important;
+                    white-space: nowrap !important;
+                    flex: 1; /* Obliga a los botones a tener el mismo tamaño */
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                }
+                
+                /* Ajustar los márgenes de la tarjeta para ganar espacio interior */
+                #gameOverModal .modal-body {
+                    padding: 0.75rem 0.5rem !important;
+                }
+            }
+        `;
+        document.head.appendChild(cssFix);
+    }
     
     // 🚀 VIGILANTE SILENCIOSO: Oculta la barra móvil automáticamente al jugar
     const gameView = document.getElementById('game-view');
