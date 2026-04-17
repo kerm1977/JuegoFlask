@@ -1,7 +1,5 @@
-// ✂️ ========================================================= ✂️
-// ✂️ ARCHIVO 2: lobby.js                                       ✂️
-// ✂️ CORTA DESDE AQUÍ ABAJO                                    ✂️
-// ✂️ ========================================================= ✂️
+// Nombre: lobby.js
+// Ubicación: static/js/
 
 // ==========================================
 // [MÓDULO: LOBBY] - CONEXIÓN SOCKET.IO Y SISTEMA DE RETOS
@@ -30,6 +28,7 @@ let playersModalInst = null;
 let selectGameModalInst = null;
 let rechazarModalInst = null;
 let statsModalInst = null;
+let waitingModalInst = null; // Instancia del Modal de Espera (Glassmorphism)
 
 document.addEventListener("DOMContentLoaded", () => {
     if(document.getElementById('playersModal')) playersModalInst = new bootstrap.Modal(document.getElementById('playersModal'));
@@ -37,19 +36,22 @@ document.addEventListener("DOMContentLoaded", () => {
     if(document.getElementById('rechazarModal')) rechazarModalInst = new bootstrap.Modal(document.getElementById('rechazarModal'));
 });
 
+// ==========================================
+// [MÓDULO: LOBBY] - LISTA DE JUGADORES
+// ==========================================
+
 /**
- * [MÓDULO: LOBBY]
  * Muestra el modal de jugadores y envía un evento al servidor para obtener la lista
  * actualizada de usuarios conectados y desconectados.
  */
 window.solicitarListaJugadores = () => {
     if(!estaAutenticado) { alert("Debes iniciar sesión para ver los jugadores."); return; }
-    document.getElementById('playersListContainer').innerHTML = '<div class="text-center"><div class="spinner-border text-info"></div></div>';
+    document.getElementById('playersListContainer').innerHTML = '<div class="text-center p-4"><div class="spinner-border text-info"></div></div>';
     if(playersModalInst) playersModalInst.show();
     socket.emit('solicitar_jugadores');
 };
 
-// [MÓDULO: LOBBY] Escuchar cambios de estado (conectado/desconectado) en tiempo real
+// Escuchar cambios de estado (conectado/desconectado) en tiempo real
 socket.on('online_users_updated', () => {
     const modalEl = document.getElementById('playersModal');
     // Si el modal está abierto en pantalla, volvemos a pedir la lista automáticamente
@@ -58,61 +60,183 @@ socket.on('online_users_updated', () => {
     }
 });
 
-// [MÓDULO: LOBBY] Recibe la lista de jugadores y la renderiza en el modal correspondiente.
+// Recibe la lista detallada de jugadores y la renderiza en el modal correspondiente.
 socket.on('lista_jugadores', (jugadores) => {
     const container = document.getElementById('playersListContainer');
+    if (!container) return;
     container.innerHTML = '';
     
-    if (jugadores.length === 0) {
-        container.innerHTML = '<p class="text-center text-muted">No hay otros jugadores registrados.</p>'; return;
+    if (jugadores.length === 0 || (jugadores.length === 1 && jugadores[0].username === nombreUsuario)) {
+        container.innerHTML = '<p class="text-center text-muted p-4">No hay otros jugadores registrados.</p>'; return;
     }
 
+    let listHtml = '<div class="list-group list-group-flush">';
     jugadores.forEach(j => {
-        let statusHtml = j.is_online ? '<span class="status-indicator status-online"></span> <span class="text-success small">En línea</span>' 
-                                     : '<span class="status-indicator status-offline"></span> <span class="text-muted small">Desconectado</span>';
-        
-        let btnRetarHtml = j.is_online ? `<button class="btn btn-sm btn-outline-warning rounded-pill" onclick="prepararReto('${j.username}')"><i class="bi bi-lightning-charge-fill"></i> Retar</button>` 
-                                  : `<button class="btn btn-sm btn-outline-secondary rounded-pill" disabled>Ausente</button>`;
+        if (j.username !== nombreUsuario) { // Evitamos mostrarnos a nosotros mismos
+            let statusHtml = j.is_online ? '<span class="status-indicator status-online"></span> <span class="text-success small">En línea</span>' 
+                                         : '<span class="status-indicator status-offline"></span> <span class="text-muted small">Desconectado</span>';
+            
+            let btnRetarHtml = j.is_online ? `<button class="btn btn-sm btn-outline-warning rounded-pill" onclick="prepararReto('${j.username}')"><i class="bi bi-lightning-charge-fill"></i> Retar</button>` 
+                                           : `<button class="btn btn-sm btn-outline-secondary rounded-pill" disabled>Ausente</button>`;
 
-        let btnStatsHtml = `<button class="btn btn-sm btn-outline-info rounded-pill ms-2" onclick="verEstadisticas('${j.username}')"><i class="bi bi-bar-chart-line-fill"></i> Stats</button>`;
+            let btnStatsHtml = `<button class="btn btn-sm btn-outline-info rounded-pill ms-2" onclick="verEstadisticas('${j.username}')"><i class="bi bi-bar-chart-line-fill"></i> Stats</button>`;
 
-        container.innerHTML += `
-            <div class="player-list-item d-flex justify-content-between align-items-center p-3 border-bottom border-secondary">
-                <div>
-                    <strong><i class="bi bi-person-fill text-info"></i> ${j.username}</strong><br>
-                    ${statusHtml}
+            listHtml += `
+                <div class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between align-items-center p-3">
+                    <div>
+                        <strong><i class="bi bi-person-fill text-info"></i> ${j.username}</strong><br>
+                        ${statusHtml}
+                    </div>
+                    <div class="d-flex align-items-center">
+                        ${btnRetarHtml}
+                        ${btnStatsHtml}
+                    </div>
                 </div>
-                <div class="d-flex align-items-center">
-                    ${btnRetarHtml}
-                    ${btnStatsHtml}
-                </div>
-            </div>
-        `;
+            `;
+        }
     });
+    listHtml += '</div>';
+    container.innerHTML = listHtml;
 });
 
-/**
- * [MÓDULO: LOBBY]
- * Almacena el nombre del usuario a retar, oculta el modal de jugadores
- * y abre el modal de selección de juego.
- * @param {string} username - Nombre del jugador al que se desea retar.
- */
+// ==========================================
+// [MÓDULO: LOBBY] - SISTEMA DE RETOS INTERACTIVOS
+// ==========================================
+
 window.prepararReto = (username) => {
     targetUserToChallenge = username;
     if(playersModalInst) playersModalInst.hide();
     if(selectGameModalInst) selectGameModalInst.show();
 };
 
-/**
- * [MÓDULO: LOBBY]
- * Envía el reto de juego al jugador seleccionado anteriormente a través del socket.
- * @param {string} gameType - El identificador del juego (gato, 4linea, damas, etc).
- */
+function getOrCreateWaitingModal() {
+    let modalEl = document.getElementById('waitingModal');
+    if (!modalEl) {
+        const modalHtml = `
+        <div class="modal fade" id="waitingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content glass-modal border-info text-center shadow-lg" style="background: rgba(20, 20, 30, 0.95); backdrop-filter: blur(12px);">
+                    <div class="modal-body py-5">
+                        <div class="spinner-grow text-info mb-4" style="width: 3rem; height: 3rem;" role="status"></div>
+                        <h4 class="fw-bold text-white mb-3" id="waitingModalTitle">Enviando Reto...</h4>
+                        <p class="text-muted" id="waitingModalMessage">Esperando respuesta del oponente...</p>
+                        <button class="btn btn-outline-danger rounded-pill mt-4 px-4 shadow-sm" onclick="cancelarRetoEnviado()">
+                            <i class="bi bi-x-circle"></i> Cancelar Reto
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modalEl = document.getElementById('waitingModal');
+    }
+    return new bootstrap.Modal(modalEl);
+}
+
 window.enviarReto = (gameType) => {
-    if(selectGameModalInst) selectGameModalInst.hide();
-    socket.emit('enviar_reto', { target: targetUserToChallenge, game_type: gameType });
-    alert(`Reto enviado a ${targetUserToChallenge}. Esperando respuesta...`);
+    if (selectGameModalInst) selectGameModalInst.hide();
+    
+    socket.emit('enviar_reto', {
+        target: targetUserToChallenge,
+        game_type: gameType
+    });
+
+    // Desplegamos el Modal Glassmorphism de espera
+    if (!waitingModalInst) waitingModalInst = getOrCreateWaitingModal();
+    document.getElementById('waitingModalTitle').innerHTML = `Reto de ${gameType.toUpperCase()}`;
+    document.getElementById('waitingModalMessage').innerHTML = `Esperando a que <strong>${targetUserToChallenge}</strong> acepte tu desafío...`;
+    waitingModalInst.show();
 };
+
+window.cancelarRetoEnviado = () => {
+    if (waitingModalInst) waitingModalInst.hide();
+    targetUserToChallenge = null;
+};
+
+// Muestra la pantalla gigante cuando recibimos un reto
+socket.on('recibir_reto', (data) => {
+    currentChallenger = data.retador;
+    currentGameToPlay = data.game_type;
+    
+    let gameName = data.game_type === 'gato' ? 'Gato' : (data.game_type === '4linea' ? '4 en Línea' : (data.game_type === 'damas' ? 'Damas' : (data.game_type === 'reversi' ? 'Reversi' : 'Gomoku')));
+
+    const overlay = document.getElementById('retoOverlay');
+    const retadorText = document.getElementById('retadorNombre');
+    
+    if (overlay && retadorText) {
+        retadorText.innerHTML = `¡<strong>${data.retador}</strong> te ha desafiado a una partida de <strong>${gameName}</strong>!`;
+        overlay.style.display = 'flex';
+    }
+});
+
+window.responderReto = (aceptado) => {
+    if(rechazarModalInst) rechazarModalInst.hide();
+    const overlay = document.getElementById('retoOverlay');
+    if (overlay) overlay.style.display = 'none';
+    
+    socket.emit('respuesta_reto', {
+        retador: currentChallenger,
+        aceptado: aceptado,
+        game_type: currentGameToPlay
+    });
+    
+    if(!aceptado) {
+        currentChallenger = null; currentGameToPlay = null;
+    }
+};
+
+window.confirmarRechazo = () => {
+    const overlay = document.getElementById('retoOverlay');
+    if (overlay) overlay.style.display = 'none';
+    if(rechazarModalInst) rechazarModalInst.show();
+};
+
+window.cancelarRechazo = () => {
+    if(rechazarModalInst) rechazarModalInst.hide();
+    const overlay = document.getElementById('retoOverlay');
+    if (overlay) overlay.style.display = 'flex';
+};
+
+// Modal de Rechazo (Glassmorphism)
+socket.on('reto_rechazado', (data) => {
+    if (waitingModalInst) waitingModalInst.hide();
+    
+    let rejectedModalEl = document.getElementById('rejectedModal');
+    if (!rejectedModalEl) {
+        const modalHtml = `
+        <div class="modal fade" id="rejectedModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content glass-modal border-danger text-center shadow-lg">
+                    <div class="modal-body py-5">
+                        <i class="bi bi-emoji-frown text-danger display-1 mb-3 d-block"></i>
+                        <h4 class="fw-bold text-white mb-2">Reto Rechazado</h4>
+                        <p class="text-muted" id="rejectedModalMessage">El oponente no puede jugar ahora.</p>
+                        <button class="btn btn-outline-light rounded-pill mt-4 px-4 shadow-sm" data-bs-dismiss="modal">
+                            Entendido
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        rejectedModalEl = document.getElementById('rejectedModal');
+    }
+    
+    // Aquí soportamos si el servidor envía 'target' o 'retado'
+    let usernameRechazador = data.target || data.retado || "El jugador";
+    document.getElementById('rejectedModalMessage').innerHTML = `<strong>${usernameRechazador}</strong> ha rechazado tu desafío.`;
+    const rejectedModalInst = new bootstrap.Modal(rejectedModalEl);
+    rejectedModalInst.show();
+    
+    targetUserToChallenge = null;
+});
+
+// Cerramos nuestra propia ventana de espera de forma limpia cuando el juego inicia
+socket.on('game_started', () => {
+    if (waitingModalInst) {
+        waitingModalInst.hide();
+    }
+});
 
 // ==========================================
 // [MÓDULO: STATS] - SISTEMA DE ESTADÍSTICAS, PAGINACIÓN Y PERFIL
@@ -121,7 +245,6 @@ window.currentStatsData = [];
 window.currentStatsPage = 1;
 
 /**
- * [MÓDULO: STATS]
  * Muestra el perfil del usuario actual (el que tiene la sesión iniciada)
  * reutilizando el modal de estadísticas.
  */
@@ -144,10 +267,8 @@ window.verMiPerfil = () => {
 };
 
 /**
- * [MÓDULO: STATS]
  * Construye dinámicamente el modal de estadísticas en el DOM si no existe,
  * y devuelve la instancia de Bootstrap del modal.
- * @returns {bootstrap.Modal} Instancia del modal de estadísticas.
  */
 function getOrCreateStatsModal() {
     let modalEl = document.getElementById('statsModal');
@@ -171,7 +292,6 @@ function getOrCreateStatsModal() {
         
         // Manejar el cierre del modal para regresar al modal de jugadores SI este no era el perfil
         modalEl.addEventListener('hidden.bs.modal', function () {
-            // Si el título no incluye "Mi Perfil", significa que estábamos viendo a otro jugador, podemos reabrir la lista
             let titleText = document.getElementById('statsModalTitle').innerText;
             if (playersModalInst && !titleText.includes("Mi Perfil")) {
                 playersModalInst.show();
@@ -183,7 +303,6 @@ function getOrCreateStatsModal() {
 }
 
 /**
- * [MÓDULO: STATS]
  * Muestra el modal de estadísticas y emite un evento para pedir los datos al servidor.
  * @param {string} username - El usuario del cual queremos ver el historial.
  */
@@ -196,7 +315,7 @@ window.verEstadisticas = (username) => {
     socket.emit('solicitar_estadisticas', { username: username });
 };
 
-// [MÓDULO: STATS] Recibe el historial de la BD, lo agrupa por oponente/juego y llama al renderizado paginado.
+// Recibe el historial de la BD, lo agrupa por oponente/juego y llama al renderizado paginado.
 socket.on('recibir_estadisticas', (data) => {
     const body = document.getElementById('statsModalBody');
     if(!body) return;
@@ -220,15 +339,15 @@ socket.on('recibir_estadisticas', (data) => {
     let headerHtml = `
         <div class="row text-center mb-4 glass-panel p-3 mx-1">
             <div class="col-4 border-end border-secondary">
-                <div class="display-6 text-success fw-bold">${data.victorias}</div>
+                <div class="display-6 text-success fw-bold">${data.victorias || 0}</div>
                 <div class="small text-light text-uppercase fw-bold letter-spacing">Victorias</div>
             </div>
             <div class="col-4 border-end border-secondary">
-                <div class="display-6 text-danger fw-bold">${data.derrotas}</div>
+                <div class="display-6 text-danger fw-bold">${data.derrotas || 0}</div>
                 <div class="small text-light text-uppercase fw-bold letter-spacing">Derrotas</div>
             </div>
             <div class="col-4">
-                <div class="display-6 text-warning fw-bold">${data.empates}</div>
+                <div class="display-6 text-warning fw-bold">${data.empates || 0}</div>
                 <div class="small text-light text-uppercase fw-bold letter-spacing">Empates</div>
             </div>
         </div>
@@ -242,7 +361,6 @@ socket.on('recibir_estadisticas', (data) => {
 });
 
 /**
- * [MÓDULO: STATS]
  * Función de paginación que renderiza una página específica del historial (10 ítems por página).
  * @param {number} page - El número de página a renderizar.
  */
@@ -300,67 +418,3 @@ window.renderStatsPage = (page) => {
     }
     pagination.innerHTML = pagHtml;
 };
-
-// ==========================================
-// [MÓDULO: LOBBY] - GESTIÓN DE RETOS ENTRANTES Y OVERLAY
-// ==========================================
-
-// [MÓDULO: LOBBY] Evento socket: muestra la pantalla gigante cuando recibimos un reto de alguien.
-socket.on('recibir_reto', (data) => {
-    currentChallenger = data.retador;
-    currentGameToPlay = data.game_type;
-    
-    let gameName = data.game_type === 'gato' ? 'Gato' : (data.game_type === '4linea' ? '4 en Línea' : (data.game_type === 'damas' ? 'Damas' : (data.game_type === 'reversi' ? 'Reversi' : 'Gomoku')));
-
-    document.getElementById('retadorNombre').innerHTML = `<strong>${currentChallenger}</strong> te ha retado a una partida de <strong>${gameName}</strong>.`;
-    
-    document.getElementById('retoOverlay').style.display = 'flex';
-});
-
-/**
- * [MÓDULO: LOBBY]
- * Envía nuestra respuesta final al servidor (Aceptar o Rechazar el reto).
- * @param {boolean} aceptado - true si el usuario aceptó jugar, false en caso contrario.
- */
-window.responderReto = (aceptado) => {
-    if(rechazarModalInst) rechazarModalInst.hide();
-    document.getElementById('retoOverlay').style.display = 'none';
-    
-    socket.emit('respuesta_reto', {
-        retador: currentChallenger,
-        aceptado: aceptado,
-        game_type: currentGameToPlay
-    });
-    
-    if(!aceptado) {
-        currentChallenger = null; currentGameToPlay = null;
-    }
-};
-
-/**
- * [MÓDULO: LOBBY]
- * Muestra el modal secundario para confirmar si realmente queremos rechazar.
- */
-window.confirmarRechazo = () => {
-    document.getElementById('retoOverlay').style.display = 'none';
-    if(rechazarModalInst) rechazarModalInst.show();
-};
-
-/**
- * [MÓDULO: LOBBY]
- * Oculta el modal de rechazo y vuelve a mostrar el Overlay de reto principal.
- */
-window.cancelarRechazo = () => {
-    if(rechazarModalInst) rechazarModalInst.hide();
-    document.getElementById('retoOverlay').style.display = 'flex';
-};
-
-// [MÓDULO: LOBBY] Evento socket: nos notifica si la otra persona no quiso jugar.
-socket.on('reto_rechazado', (data) => {
-    alert(`El jugador ${data.retado} ha rechazado tu reto. ¡Qué gallina! 🐔`);
-});
-
-// ✂️ ========================================================= ✂️
-// ✂️ FIN DEL ARCHIVO 2: lobby.js                               ✂️
-// ✂️ ========================================================= ✂️
-

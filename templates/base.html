@@ -278,10 +278,23 @@
     </script>
 
     <!-- Scripts Modularizados de la App -->
+    <!-- 1. Interfaz de Usuario, Red y Socket (DEBEN IR PRIMERO PARA DEFINIR EL SOCKET) -->
     <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
     <script src="{{ url_for('static', filename='js/lobby.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/game.js') }}"></script>
     <script src="{{ url_for('static', filename='js/network.js') }}"></script>
+
+    <!-- 2. Variables Globales y Core del Juego -->
+    <script src="{{ url_for('static', filename='js/game.js') }}"></script>
+
+    <!-- 3. Módulos de Reglas (Juegos) -->
+    <script src="{{ url_for('static', filename='js/gato.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/4linea.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/gomoku.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/reversi.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/damas.js') }}"></script>
+
+    <!-- 4. Lógica de Turnos e IA -->
+    <script src="{{ url_for('static', filename='js/logicaIA.js') }}"></script>
     
     {% block scripts %}{% endblock %}
 </body>
