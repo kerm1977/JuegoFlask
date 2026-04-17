@@ -1,6 +1,16 @@
 // Nombre: game.js
 // Ubicación: static/js/
 
+// 🚀 FIX ANTI-CACHE: Interceptamos alertas viejas que puedan haber quedado en la memoria del celular
+const originalAlert = window.alert;
+window.alert = function(msg) {
+    if (typeof msg === 'string' && (msg.includes('Esperando respuesta') || msg.includes('enviado a'))) {
+        console.log('Alerta bloqueada por el sistema anti-caché:', msg);
+        return;
+    }
+    originalAlert(msg);
+};
+
 window.currentGame = null; 
 let bsGameOverModal;
 
@@ -90,18 +100,38 @@ document.addEventListener("DOMContentLoaded", () => {
         document.head.appendChild(cssFix);
     }
     
-    // 🚀 VIGILANTE SILENCIOSO: Oculta la barra móvil automáticamente al jugar
+    // 🚀 VIGILANTE SILENCIOSO: Oculta la barra móvil automáticamente al jugar y LIMPIA MODALES
     const gameView = document.getElementById('game-view');
     const bottomBar = document.querySelector('.mobile-bottom-bar');
     
-    if (gameView && bottomBar) {
+    if (gameView) {
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
                     if (gameView.style.display === 'block') {
-                        bottomBar.style.display = 'none'; // Desaparece al jugar
+                        if (bottomBar) bottomBar.style.display = 'none'; // Desaparece al jugar
+                        
+                        // 💥 DESTRUCTOR DE MODALES: Aniquila cualquier modal horrible que haya quedado abierto
+                        try {
+                            if (typeof Swal !== 'undefined') Swal.close();
+                            if (typeof swal !== 'undefined') swal.close();
+                            
+                            const waitingModalEl = document.getElementById('waitingModal');
+                            if (waitingModalEl) {
+                                const wModal = bootstrap.Modal.getInstance(waitingModalEl);
+                                if (wModal) wModal.hide();
+                            }
+                            
+                            document.body.classList.remove('modal-open');
+                            document.body.style.overflow = '';
+                            document.body.style.paddingRight = '';
+                            document.querySelectorAll('.modal-backdrop, .swal2-container').forEach(el => el.remove());
+                        } catch (e) {
+                            console.error("Error limpiando modales fantasmas:", e);
+                        }
+
                     } else {
-                        bottomBar.style.display = 'flex'; // Vuelve en el lobby
+                        if (bottomBar) bottomBar.style.display = 'flex'; // Vuelve en el lobby
                     }
                 }
             });
@@ -247,14 +277,24 @@ window.startLocalGame = (type, vsPC = false, difficulty = null, startingTurn = n
 window.renderGameBoard = () => {
     if(!window.currentGame) return;
 
-    // 🚀 FIX: Forzar el cierre del modal de "Fin de Partida" si un nuevo juego ha comenzado
-    if (window.currentGame.status === 'playing' && typeof bsGameOverModal !== 'undefined' && bsGameOverModal) {
-        bsGameOverModal.hide();
-        // Limpieza de estilos residuales que Bootstrap deja tras cerrar un modal
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+    // 🚀 FIX: Forzar el cierre del modal de "Fin de Partida" u otros estorbos si un nuevo juego ha comenzado
+    if (window.currentGame.status === 'playing') {
+        if (typeof bsGameOverModal !== 'undefined' && bsGameOverModal) bsGameOverModal.hide();
+        
+        try {
+            const waitingModalEl = document.getElementById('waitingModal');
+            if (waitingModalEl) {
+                const wModal = bootstrap.Modal.getInstance(waitingModalEl);
+                if (wModal) wModal.hide();
+            }
+            if (typeof Swal !== 'undefined') Swal.close();
+            if (typeof swal !== 'undefined') swal.close();
+            
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            document.querySelectorAll('.modal-backdrop, .swal2-container').forEach(el => el.remove());
+        } catch (e) {}
     }
 
     const boardDiv = document.getElementById('gameBoard');
