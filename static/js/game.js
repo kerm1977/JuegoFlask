@@ -12,7 +12,15 @@ window.alert = function(msg) {
 };
 
 window.currentGame = null; 
+// 🚀 FIX CRÍTICO DAMAS: Restaurada la variable global que maneja las selecciones y saltos múltiples en Damas
+window.localSelection = { selectedPiece: null, validMoves: [], multiJumping: false };
+let localSelection = window.localSelection; 
 let bsGameOverModal;
+
+// ==============================================================================
+// ✂️ --- CORTAR AQUÍ PARA NUEVO ARCHIVO: ui_modals.js --- ✂️
+// TODO LO QUE ESTÉ DENTRO DE ESTAS MARCAS SE MUDARÁ A ui_modals.js EN EL FUTURO
+// ==============================================================================
 
 document.addEventListener("DOMContentLoaded", () => {
     const goModalEl = document.getElementById('gameOverModal');
@@ -30,8 +38,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (node.parentElement && (node.parentElement.tagName === 'BUTTON' || node.parentElement.tagName === 'A')) {
                         node.parentElement.addEventListener('click', () => {
                             if (typeof bsGameOverModal !== 'undefined') bsGameOverModal.hide();
-                            if (typeof window.mostrarEsperandoRetador === 'function') {
-                                window.mostrarEsperandoRetador();
+                            
+                            // Solo mostrar la espera si estamos en MULTIJUGADOR. 
+                            if (window.currentGame && window.currentGame.mode === 'multi') {
+                                if (typeof window.mostrarEsperandoRetador === 'function') {
+                                    window.mostrarEsperandoRetador();
+                                }
                             }
                         });
                     }
@@ -110,7 +122,32 @@ document.addEventListener("DOMContentLoaded", () => {
         document.head.appendChild(cssFix);
     }
     
-    // 🚀 VIGILANTE SILENCIOSO: Oculta la barra móvil automáticamente al jugar y LIMPIA MODALES
+    // 🚀 FIX VISIBILIDAD: Aclarar paneles para jugar cómodamente de día
+    if (!document.getElementById('dayVisibilityFix')) {
+        const lightCss = document.createElement('style');
+        lightCss.id = 'dayVisibilityFix';
+        lightCss.innerHTML = `
+            /* Hacemos los paneles más claros (Gris Azulado / Pizarra) sin llegar a ser blancos */
+            .glass-panel, .glass-modal {
+                background: rgba(50, 55, 75, 0.95) !important;
+                border: 1px solid rgba(255, 255, 255, 0.18) !important;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 0 15px rgba(255, 255, 255, 0.05) !important;
+            }
+            
+            /* Un toque extra de claridad exclusiva para el tablero de juego */
+            .game-board.glass-panel {
+                background: rgba(60, 65, 90, 0.95) !important;
+            }
+            
+            /* Mejorar el contraste de los textos secundarios para que se lean bien con el nuevo fondo aclarado */
+            .text-muted {
+                color: #ced4da !important;
+            }
+        `;
+        document.head.appendChild(lightCss);
+    }
+    
+    // 🚀 VIGILANTE SILENCIOSO: Oculta la barra móvil automáticamente al jugar y LIMPIA MODALES SOLO UNA VEZ
     const gameView = document.getElementById('game-view');
     const bottomBar = document.querySelector('.mobile-bottom-bar');
     
@@ -121,8 +158,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (gameView.style.display === 'block') {
                         if (bottomBar) bottomBar.style.display = 'none'; // Desaparece al jugar
                         
-                        // 💥 DESTRUCTOR DE MODALES: Aniquila cualquier modal horrible que haya quedado abierto
+                        // 💥 DESTRUCTOR DE MODALES SEGURO: Se ejecuta solo al abrir el tablero
                         try {
+                            if (typeof bsGameOverModal !== 'undefined' && bsGameOverModal) bsGameOverModal.hide();
                             if (typeof Swal !== 'undefined') Swal.close();
                             if (typeof swal !== 'undefined') swal.close();
                             
@@ -132,14 +170,12 @@ document.addEventListener("DOMContentLoaded", () => {
                                 if (wModal) wModal.hide();
                             }
 
-                            // Limpiar el modal de "Esperando retador"
                             const waitingChallengerModalEl = document.getElementById('waitingChallengerModal');
                             if (waitingChallengerModalEl) {
                                 const wcModal = bootstrap.Modal.getInstance(waitingChallengerModalEl);
                                 if (wcModal) wcModal.hide();
                             }
 
-                            // Limpiar modal de abandono si estuviera abierto
                             const abandonModalEl = document.getElementById('abandonModal');
                             if (abandonModalEl) {
                                 const aModal = bootstrap.Modal.getInstance(abandonModalEl);
@@ -164,6 +200,108 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
+// ==========================================
+// NUEVOS MODALES: ESPERA Y ABANDONO
+// ==========================================
+window.mostrarEsperandoRetador = () => {
+    let modalEl = document.getElementById('waitingChallengerModal');
+    if (!modalEl) {
+        const modalHtml = `
+        <div class="modal fade" id="waitingChallengerModal" tabindex="-1" data-bs-backdrop="static">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content glass-modal border-info text-center shadow-lg" style="background: rgba(20, 20, 30, 0.95); backdrop-filter: blur(12px);">
+                    <div class="modal-body py-5">
+                        <div class="spinner-border text-info mb-4 shadow" style="width: 3.5rem; height: 3.5rem;" role="status"></div>
+                        <h4 class="fw-bold text-white mb-3">Preparando partida...</h4>
+                        <p class="text-light" style="font-size: 1.1rem;">Esperando confirmación del oponente...</p>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modalEl = document.getElementById('waitingChallengerModal');
+    }
+    const inst = new bootstrap.Modal(modalEl);
+    inst.show();
+};
+
+window.mostrarModalAbandono = (nombreOponente) => {
+    // Ocultar la pantalla de fin de juego o de espera si estuviera abierta
+    if (typeof bsGameOverModal !== 'undefined' && bsGameOverModal) bsGameOverModal.hide();
+    ['waitingModal', 'waitingChallengerModal', 'pcConfigModal'].forEach(id => {
+        let el = document.getElementById(id);
+        if (el) {
+            let inst = bootstrap.Modal.getInstance(el);
+            if (inst) inst.hide();
+        }
+    });
+
+    let modalEl = document.getElementById('abandonModal');
+    if (!modalEl) {
+        const modalHtml = `
+        <div class="modal fade" id="abandonModal" tabindex="-1" data-bs-backdrop="static">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content glass-modal border-danger text-center shadow-lg">
+                    <div class="modal-body py-5">
+                        <i class="bi bi-door-open-fill text-danger display-1 mb-3 d-block"></i>
+                        <h4 class="fw-bold text-white mb-2">Partida Abandonada</h4>
+                        <p class="text-light" id="abandonModalMessage">El oponente ha abandonado el juego.</p>
+                        <button class="btn btn-outline-danger rounded-pill mt-4 px-4 shadow-sm" onclick="cerrarAbandono()">
+                            Volver al Menú
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modalEl = document.getElementById('abandonModal');
+    }
+    
+    let targetName = nombreOponente || (window.currentGame ? window.currentGame.opponent : 'El oponente');
+    document.getElementById('abandonModalMessage').innerHTML = `<strong class="text-warning">${targetName}</strong> ha abandonado la partida o rechazado el reto.`;
+    
+    const abandonInst = new bootstrap.Modal(modalEl);
+    abandonInst.show();
+};
+
+window.cerrarAbandono = () => {
+    let modalEl = document.getElementById('abandonModal');
+    if (modalEl) {
+        let inst = bootstrap.Modal.getInstance(modalEl);
+        if (inst) inst.hide();
+    }
+    if (typeof window.closeGameOver === 'function') window.closeGameOver();
+};
+
+// 🚀 Escuchar eventos de abandono desde el servidor para disparar el modal
+if (typeof socket !== 'undefined') {
+    socket.on('opponent_abandoned', (data) => {
+        window.mostrarModalAbandono(data ? data.username : null);
+    });
+    
+    socket.on('player_left', (data) => {
+        window.mostrarModalAbandono(data ? data.username : null);
+    });
+    
+    socket.on('reto_rechazado', (data) => {
+        // En caso de que se rechace un reto cuando venimos del modal de Fin de Juego
+        if (window.currentGame && window.currentGame.status === 'finished') {
+            window.mostrarModalAbandono(data ? (data.target || data.retado) : null);
+        }
+    });
+    
+    socket.on('reto_cancelado', (data) => {
+        window.mostrarModalAbandono(data ? data.username : null);
+    });
+}
+// ==============================================================================
+// ✂️ --- FIN DE CORTE PARA ui_modals.js --- ✂️
+// ==============================================================================
+
+
+// ==============================================================================
+// LÓGICA CORE (Este código se quedará en game.js en el futuro)
+// ==============================================================================
 function getInitialState(type) {
     if(type === 'gato') return { board: Array(9).fill(0) };
     if(type === '4linea') return { board: Array(42).fill(0) }; 
@@ -272,6 +410,10 @@ window.startLocalGame = (type, vsPC = false, difficulty = null, startingTurn = n
     let finalDifficulty = difficulty || 'normal';
     let finalStarter = startingTurn || 1; 
 
+    // Limpiamos las selecciones previas de damas al iniciar un nuevo juego
+    window.localSelection = { selectedPiece: null, validMoves: [], multiJumping: false };
+    localSelection = window.localSelection;
+
     window.currentGame = { 
         mode: 'local', 
         vsPC: vsPC, 
@@ -298,41 +440,12 @@ window.startLocalGame = (type, vsPC = false, difficulty = null, startingTurn = n
     }
 };
 
+// ==============================================================================
+// ✂️ --- CORTAR AQUÍ PARA NUEVO ARCHIVO: board_render.js --- ✂️
+// TODO EL MOTOR DE RENDERIZADO DEL TABLERO
+// ==============================================================================
 window.renderGameBoard = () => {
     if(!window.currentGame) return;
-
-    // 🚀 FIX: Forzar el cierre del modal de "Fin de Partida" u otros estorbos si un nuevo juego ha comenzado
-    if (window.currentGame.status === 'playing') {
-        if (typeof bsGameOverModal !== 'undefined' && bsGameOverModal) bsGameOverModal.hide();
-        
-        try {
-            const waitingModalEl = document.getElementById('waitingModal');
-            if (waitingModalEl) {
-                const wModal = bootstrap.Modal.getInstance(waitingModalEl);
-                if (wModal) wModal.hide();
-            }
-
-            const waitingChallengerModalEl = document.getElementById('waitingChallengerModal');
-            if (waitingChallengerModalEl) {
-                const wcModal = bootstrap.Modal.getInstance(waitingChallengerModalEl);
-                if (wcModal) wcModal.hide();
-            }
-            
-            const abandonModalEl = document.getElementById('abandonModal');
-            if (abandonModalEl) {
-                const aModal = bootstrap.Modal.getInstance(abandonModalEl);
-                if (aModal) aModal.hide();
-            }
-
-            if (typeof Swal !== 'undefined') Swal.close();
-            if (typeof swal !== 'undefined') swal.close();
-            
-            document.body.classList.remove('modal-open');
-            document.body.style.overflow = '';
-            document.body.style.paddingRight = '';
-            document.querySelectorAll('.modal-backdrop, .swal2-container').forEach(el => el.remove());
-        } catch (e) {}
-    }
 
     const boardDiv = document.getElementById('gameBoard');
     const type = window.currentGame.gameType; 
@@ -549,11 +662,40 @@ window.renderGameBoard = () => {
         state.board.forEach((cell, i) => {
             let row = Math.floor(i/8); let col = i%8; let d = document.createElement('div');
             let isDark = (row+col)%2 !== 0; d.className = `cell ${isDark ? 'chk-dark' : 'chk-light'}`;
-            if (isMyTurn && typeof localSelection !== 'undefined' && localSelection.validMoves.includes(i)) { d.classList.add('valid-move'); d.style.cursor = 'pointer'; }
+            
+            // 🚀 FIX TOTAL: Mantenemos estrictamente la posición para no romper tu cuadrícula
+            d.style.position = 'relative';
+
+            // Obtenemos la selección usando la referencia segura que sí se actualiza en memoria
+            let validMoves = (typeof localSelection !== 'undefined' && localSelection) ? localSelection.validMoves : [];
+            let selPiece = (typeof localSelection !== 'undefined' && localSelection) ? localSelection.selectedPiece : null;
+            
+            // Verificación inquebrantable: La celda debe estar 100% vacía para dibujar un punto.
+            let isPieceSelected = selPiece !== null && selPiece !== undefined && selPiece !== -1;
+
+            if (isMyTurn && isPieceSelected && cell === 0 && validMoves.includes(i)) { 
+                d.style.cursor = 'pointer'; 
+                
+                // Centrado matemático perfecto (0 en todos los lados y margin auto)
+                let validDot = document.createElement('div');
+                validDot.style.cssText = "width: 18px; height: 18px; background-color: #ffd700; border-radius: 50%; position: absolute; top: 0; bottom: 0; left: 0; right: 0; margin: auto; box-shadow: 0 0 10px #ffd700; pointer-events: none; z-index: 10;";
+                d.appendChild(validDot);
+            }
+            
             if(cell !== 0) {
                 let piece = document.createElement('div'); piece.className = `chk-piece ${cell===1 || cell===3 ? 'chk-p1' : 'chk-p2'}`;
+                piece.style.position = 'relative';
+                piece.style.zIndex = '5';
+                
                 if(cell>2) piece.innerText = '♚'; 
-                if(isMyTurn && typeof localSelection !== 'undefined' && localSelection.selectedPiece === i) piece.style.transform = "scale(1.15)";
+                
+                // Resalte adicional exclusivo de la pieza que acabas de tocar
+                if(isMyTurn && isPieceSelected && selPiece === i) {
+                    piece.style.transform = "scale(1.15)";
+                    piece.style.boxShadow = "0 0 15px #ffd700"; 
+                    piece.style.borderRadius = "50%";
+                }
+                
                 if(window.currentGame.status === 'finished' && window.currentGame.winningLine && window.currentGame.winningLine.includes(i)) piece.classList.add('winning-piece');
                 d.appendChild(piece);
             }
@@ -562,97 +704,6 @@ window.renderGameBoard = () => {
     }
 };
 
-// ==========================================
-// NUEVOS MODALES: ESPERA Y ABANDONO
-// ==========================================
-window.mostrarEsperandoRetador = () => {
-    let modalEl = document.getElementById('waitingChallengerModal');
-    if (!modalEl) {
-        const modalHtml = `
-        <div class="modal fade" id="waitingChallengerModal" tabindex="-1" data-bs-backdrop="static">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content glass-modal border-info text-center shadow-lg" style="background: rgba(20, 20, 30, 0.95); backdrop-filter: blur(12px);">
-                    <div class="modal-body py-5">
-                        <div class="spinner-border text-info mb-4 shadow" style="width: 3.5rem; height: 3.5rem;" role="status"></div>
-                        <h4 class="fw-bold text-white mb-3">Preparando partida...</h4>
-                        <p class="text-light" style="font-size: 1.1rem;">Esperando confirmación del oponente...</p>
-                    </div>
-                </div>
-            </div>
-        </div>`;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        modalEl = document.getElementById('waitingChallengerModal');
-    }
-    const inst = new bootstrap.Modal(modalEl);
-    inst.show();
-};
-
-window.mostrarModalAbandono = (nombreOponente) => {
-    // Ocultar la pantalla de fin de juego o de espera si estuviera abierta
-    if (typeof bsGameOverModal !== 'undefined' && bsGameOverModal) bsGameOverModal.hide();
-    ['waitingModal', 'waitingChallengerModal', 'pcConfigModal'].forEach(id => {
-        let el = document.getElementById(id);
-        if (el) {
-            let inst = bootstrap.Modal.getInstance(el);
-            if (inst) inst.hide();
-        }
-    });
-
-    let modalEl = document.getElementById('abandonModal');
-    if (!modalEl) {
-        const modalHtml = `
-        <div class="modal fade" id="abandonModal" tabindex="-1" data-bs-backdrop="static">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content glass-modal border-danger text-center shadow-lg">
-                    <div class="modal-body py-5">
-                        <i class="bi bi-door-open-fill text-danger display-1 mb-3 d-block"></i>
-                        <h4 class="fw-bold text-white mb-2">Partida Abandonada</h4>
-                        <p class="text-light" id="abandonModalMessage">El oponente ha abandonado el juego.</p>
-                        <button class="btn btn-outline-danger rounded-pill mt-4 px-4 shadow-sm" onclick="cerrarAbandono()">
-                            Volver al Menú
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>`;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        modalEl = document.getElementById('abandonModal');
-    }
-    
-    let targetName = nombreOponente || (window.currentGame ? window.currentGame.opponent : 'El oponente');
-    document.getElementById('abandonModalMessage').innerHTML = `<strong class="text-warning">${targetName}</strong> ha abandonado la partida o rechazado el reto.`;
-    
-    const abandonInst = new bootstrap.Modal(modalEl);
-    abandonInst.show();
-};
-
-window.cerrarAbandono = () => {
-    let modalEl = document.getElementById('abandonModal');
-    if (modalEl) {
-        let inst = bootstrap.Modal.getInstance(modalEl);
-        if (inst) inst.hide();
-    }
-    if (typeof window.closeGameOver === 'function') window.closeGameOver();
-};
-
-// 🚀 Escuchar eventos de abandono desde el servidor para disparar el modal
-if (typeof socket !== 'undefined') {
-    socket.on('opponent_abandoned', (data) => {
-        window.mostrarModalAbandono(data ? data.username : null);
-    });
-    
-    socket.on('player_left', (data) => {
-        window.mostrarModalAbandono(data ? data.username : null);
-    });
-    
-    socket.on('reto_rechazado', (data) => {
-        // En caso de que se rechace un reto cuando venimos del modal de Fin de Juego
-        if (window.currentGame && window.currentGame.status === 'finished') {
-            window.mostrarModalAbandono(data ? (data.target || data.retado) : null);
-        }
-    });
-    
-    socket.on('reto_cancelado', (data) => {
-        window.mostrarModalAbandono(data ? data.username : null);
-    });
-}
+// ==============================================================================
+// ✂️ --- FIN DE CORTE PARA board_render.js --- ✂️
+// ==============================================================================
