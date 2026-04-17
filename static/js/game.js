@@ -246,6 +246,17 @@ window.startLocalGame = (type, vsPC = false, difficulty = null, startingTurn = n
 
 window.renderGameBoard = () => {
     if(!window.currentGame) return;
+
+    // 🚀 FIX: Forzar el cierre del modal de "Fin de Partida" si un nuevo juego ha comenzado
+    if (window.currentGame.status === 'playing' && typeof bsGameOverModal !== 'undefined' && bsGameOverModal) {
+        bsGameOverModal.hide();
+        // Limpieza de estilos residuales que Bootstrap deja tras cerrar un modal
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+    }
+
     const boardDiv = document.getElementById('gameBoard');
     const type = window.currentGame.gameType; 
     const state = window.currentGame.gameState;
