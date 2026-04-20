@@ -1,113 +1,59 @@
-<!-- Nombre: dashboard.html -->
-<!-- Ubicación: templates/ -->
 {% extends 'base.html' %}
 
 {% block content %}
 <div class="row" id="lobby-view">
     <div class="col-12 text-center mt-3 mb-5">
-        <!-- TÍTULO Y ESTADO (Flotando directo en el fondo) -->
         <h1 class="fw-bold text-white" style="text-shadow: 0 4px 10px rgba(0,0,0,0.5);"><i class="bi bi-joystick text-info"></i> Bienvenido a la Sala de Juegos</h1>
         <p class="lead mt-3 text-light" style="text-shadow: 0 2px 5px rgba(0,0,0,0.5);">Jugador Activo: <strong>{{ user.username }}</strong></p>
         <div id="socketStatus" class="badge bg-warning text-dark mt-2 p-2 shadow">Conectando al servidor...</div>
 
         <hr class="border-secondary my-4" style="opacity: 0.3;">
 
-        <!-- Selector de Juegos -->
         <div class="row mt-4 g-4 justify-content-center">
-            <!-- Juego 1: Gato -->
             <div class="col-md-4">
                 <div class="glass-panel p-4 game-card h-100">
                     <i class="bi bi-grid-3x3 fs-1 text-primary mb-3 d-block"></i>
                     <h4 class="text-white fw-bold">Gato</h4>
                     <p class="text-muted small">Tic Tac Toe clásico</p>
-                    <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('gato')">
-                        <i class="bi bi-people"></i> Jugar Local
-                    </button>
-                    <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('gato', true)">
-                        <i class="bi bi-robot"></i> Jugar vs PC
-                    </button>
-                    <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('gato')">
-                        <i class="bi bi-globe"></i> Buscar Partida Online
-                    </button>
+                    <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('gato')"><i class="bi bi-people"></i> Jugar Local</button>
+                    <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('gato', true)"><i class="bi bi-robot"></i> Jugar vs PC</button>
+                    <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('gato')"><i class="bi bi-globe"></i> Buscar Partida Online</button>
                 </div>
             </div>
-
-            <!-- Juego 2: 4 en Línea -->
             <div class="col-md-4">
                 <div class="glass-panel p-4 game-card h-100">
                     <i class="bi bi-ui-radios-grid fs-1 text-primary mb-3 d-block"></i>
                     <h4 class="text-white fw-bold">4 en Línea</h4>
                     <p class="text-muted small">Conecta 4 fichas</p>
-                    <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('4linea')">
-                        <i class="bi bi-people"></i> Jugar Local
-                    </button>
-                    <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('4linea', true)">
-                        <i class="bi bi-robot"></i> Jugar vs PC
-                    </button>
-                    <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('4linea')">
-                        <i class="bi bi-globe"></i> Buscar Partida Online
-                    </button>
+                    <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('4linea')"><i class="bi bi-people"></i> Jugar Local</button>
+                    <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('4linea', true)"><i class="bi bi-robot"></i> Jugar vs PC</button>
+                    <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('4linea')"><i class="bi bi-globe"></i> Buscar Partida Online</button>
                 </div>
             </div>
-
-            <!-- Juego 3: Damas -->
             <div class="col-md-4">
                 <div class="glass-panel p-4 game-card h-100">
                     <i class="bi bi-ui-checks-grid fs-1 text-primary mb-3 d-block"></i>
                     <h4 class="text-white fw-bold">Damas</h4>
                     <p class="text-muted small">Juego de mesa clásico</p>
-                    <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('damas')">
-                        <i class="bi bi-people"></i> Jugar Local
-                    </button>
-                    <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('damas', true)">
-                        <i class="bi bi-robot"></i> Jugar vs PC
-                    </button>
-                    <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('damas')">
-                        <i class="bi bi-globe"></i> Buscar Partida Online
-                    </button>
+                    <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('damas')"><i class="bi bi-people"></i> Jugar Local</button>
+                    <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('damas', true)"><i class="bi bi-robot"></i> Jugar vs PC</button>
+                    <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('damas')"><i class="bi bi-globe"></i> Buscar Partida Online</button>
                 </div>
             </div>
-
-            <!-- Juego 4: Reversi -->
             <div class="col-md-4">
                 <div class="glass-panel p-4 game-card h-100">
                     <i class="bi bi-yin-yang fs-1 text-light mb-3 d-block"></i>
                     <h4 class="text-white fw-bold">Reversi</h4>
                     <p class="text-muted small">Voltea a tu oponente</p>
-                    <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('reversi')">
-                        <i class="bi bi-people"></i> Jugar Local
-                    </button>
-                    <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('reversi', true)">
-                        <i class="bi bi-robot"></i> Jugar vs PC
-                    </button>
-                    <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('reversi')">
-                        <i class="bi bi-globe"></i> Buscar Partida Online
-                    </button>
-                </div>
-            </div>
-
-            <!-- Juego 5: Gomoku (Oculto a petición) -->
-            <div class="col-md-4 d-none">
-                <div class="glass-panel p-4 game-card h-100">
-                    <i class="bi bi-pentagon-half fs-1 text-warning mb-3 d-block"></i>
-                    <h4 class="text-white fw-bold">Gomoku</h4>
-                    <p class="text-muted small">5 en línea libre</p>
-                    <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('gomoku')">
-                        <i class="bi bi-people"></i> Jugar Local
-                    </button>
-                    <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('gomoku', true)">
-                        <i class="bi bi-robot"></i> Jugar vs PC
-                    </button>
-                    <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('gomoku')">
-                        <i class="bi bi-globe"></i> Buscar Partida Online
-                    </button>
+                    <button class="btn btn-outline-light glass-btn w-100 mb-2" onclick="startLocalGame('reversi')"><i class="bi bi-people"></i> Jugar Local</button>
+                    <button class="btn btn-outline-warning glass-btn w-100 mb-2 fw-bold" onclick="startLocalGame('reversi', true)"><i class="bi bi-robot"></i> Jugar vs PC</button>
+                    <button class="btn btn-info w-100 fw-bold" onclick="buscarOnline('reversi')"><i class="bi bi-globe"></i> Buscar Partida Online</button>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- VISTA: TABLERO ACTIVO -->
 <div class="row" id="game-view" style="display: none;">
     <div class="col-12">
         <div id="partida-wrapper" class="w-100 mx-auto" style="max-width: 500px;">
@@ -115,57 +61,18 @@
                 <h4 id="gameTitle" class="m-0 fw-bold text-info" style="text-shadow: 0 0 10px rgba(13,202,240,0.5);">Juego</h4>
                 <button id="btnAbandonar" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="confirmSurrender()">Abandonar</button>
             </div>
-
-            <!-- Contenedor del turno o mensaje de victoria -->
             <div class="text-center mb-3 glass-panel py-2 px-3 mx-auto" style="width: fit-content; min-width: 200px;">
                 <strong id="turnIndicator" style="font-size: 1.1rem; letter-spacing: 1px; transition: all 0.3s;">Tu turno</strong>
             </div>
-
             <div id="gameBoard" class="game-board glass-panel mb-3"></div>
 
-            <!-- ========================================================= -->
-            <!-- PANEL FIN DE JUEGO (Transformado de Modal a Panel Inline) -->
-            <!-- ========================================================= -->
             <style>
-                /* Fuerza al modal a comportarse como un DIV normal debajo del tablero */
-                #gameOverModal {
-                    position: relative !important;
-                    z-index: 10 !important;
-                    height: auto !important;
-                    overflow: visible !important;
-                    padding: 0 !important;
-                }
-                #gameOverModal.show {
-                    display: block !important;
-                }
-                #gameOverModal .modal-dialog {
-                    margin: 0 auto !important;
-                    transform: none !important;
-                    padding-bottom: 20px !important;
-                    max-width: 100% !important;
-                }
-                
-                /* Efectos especiales para el texto de victoria/derrota */
-                @keyframes winPulse {
-                    0% { transform: scale(1); filter: brightness(1); }
-                    100% { transform: scale(1.05); filter: brightness(1.3); }
-                }
-                .win-text-effect {
-                    color: #ffda6a !important; 
-                    font-size: 1.3rem !important;
-                    font-weight: 900 !important;
-                    text-shadow: 0 0 10px rgba(255, 218, 106, 0.8), 0 0 20px rgba(255, 218, 106, 0.5);
-                    animation: winPulse 1s infinite alternate;
-                    display: inline-block;
-                }
-                .lose-text-effect {
-                    color: #ff6a6a !important;
-                    font-size: 1.3rem !important;
-                    font-weight: 900 !important;
-                    text-shadow: 0 0 10px rgba(255, 106, 106, 0.8), 0 0 20px rgba(255, 106, 106, 0.5);
-                    animation: winPulse 1s infinite alternate;
-                    display: inline-block;
-                }
+                #gameOverModal { position: relative !important; z-index: 10 !important; height: auto !important; overflow: visible !important; padding: 0 !important; }
+                #gameOverModal.show { display: block !important; }
+                #gameOverModal .modal-dialog { margin: 0 auto !important; transform: none !important; padding-bottom: 20px !important; max-width: 100% !important; }
+                @keyframes winPulse { 0% { transform: scale(1); filter: brightness(1); } 100% { transform: scale(1.05); filter: brightness(1.3); } }
+                .win-text-effect { color: #ffda6a !important; font-size: 1.3rem !important; font-weight: 900 !important; text-shadow: 0 0 10px rgba(255, 218, 106, 0.8), 0 0 20px rgba(255, 218, 106, 0.5); animation: winPulse 1s infinite alternate; display: inline-block; }
+                .lose-text-effect { color: #ff6a6a !important; font-size: 1.3rem !important; font-weight: 900 !important; text-shadow: 0 0 10px rgba(255, 106, 106, 0.8), 0 0 20px rgba(255, 106, 106, 0.5); animation: winPulse 1s infinite alternate; display: inline-block; }
             </style>
             
             <div class="modal fade" id="gameOverModal" tabindex="-1" data-bs-backdrop="false">
@@ -176,8 +83,6 @@
                         </div>
                         <div class="modal-body py-2">
                             <h5 id="goMessage" class="fw-bold mb-2">¡Juego Terminado!</h5>
-                            
-                            <!-- Contenedor de Estadísticas VS PC -->
                             <div id="pcStatsContainer" class="mt-2 glass-panel p-2 mx-auto" style="display: none; background: rgba(0,0,0,0.3); width: fit-content; border-radius: 12px;">
                                 <div class="small text-warning fw-bold mb-1"><i class="bi bi-robot"></i> Récord vs PC</div>
                                 <div class="d-flex justify-content-center gap-2">
@@ -189,29 +94,18 @@
                         </div>
                         <div class="modal-footer border-top-0 justify-content-center pb-3 pt-1">
                             <button type="button" class="btn btn-sm btn-success rounded-pill px-4 shadow fw-bold" onclick="reiniciarPartida()"><i class="bi bi-arrow-clockwise"></i> Volver a Jugar</button>
-                            
-                            <!-- NUEVO BOTÓN: Ícono de Estadísticas Post-Juego -->
-                            <button type="button" id="btnPostGameStats" class="btn btn-sm btn-outline-info rounded-pill px-3 shadow fw-bold" style="display: none;" onclick="showPostGameStats()" title="Ver Estadísticas">
-                                <i class="bi bi-bar-chart-fill"></i>
-                            </button>
-
+                            <button type="button" id="btnPostGameStats" class="btn btn-sm btn-outline-info rounded-pill px-3 shadow fw-bold" style="display: none;" onclick="showPostGameStats()" title="Ver Estadísticas"><i class="bi bi-bar-chart-fill"></i></button>
                             <button type="button" class="btn btn-sm btn-info rounded-pill px-4 fw-bold text-dark shadow" onclick="closeGameOver()">Menú Principal</button>
                         </div>
                     </div>
                 </div>
             </div>
-            <!-- ========================================================= -->
-
         </div>
     </div>
 </div>
 
-<!-- ========================================== -->
-<!-- MODAL ABANDONAR PARTIDA                    -->
-<!-- ========================================== -->
 <div class="modal fade" id="surrenderModal" tabindex="-1" data-bs-backdrop="static" style="backdrop-filter: blur(5px);">
     <div class="modal-dialog modal-dialog-centered">
-        <!-- Cristal rojizo para dar sensación de advertencia -->
         <div class="modal-content glass-modal border-danger text-center shadow-lg" style="background: rgba(40, 10, 10, 0.85); backdrop-filter: blur(12px);">
             <div class="modal-header border-secondary justify-content-center">
                 <h5 class="modal-title text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill"></i> Abandonar Partida</h5>
@@ -219,63 +113,46 @@
             <div class="modal-body py-4">
                 <i class="bi bi-door-open text-danger display-1 mb-3 d-block heartbeat"></i>
                 <h4 class="text-white fw-bold">¿Estás seguro?</h4>
-                <!-- MODIFICADO: Cambiado de text-muted a text-light para mayor legibilidad -->
                 <p class="text-light">Si abandonas ahora, la partida se cerrará y perderás tu progreso actual.</p>
             </div>
             <div class="modal-footer border-secondary justify-content-center gap-3">
                 <button type="button" class="btn btn-outline-light rounded-pill px-4" data-bs-dismiss="modal">No, continuar</button>
-                <button type="button" class="btn btn-danger rounded-pill px-4 fw-bold shadow" onclick="executeSurrender()">
-                    <i class="bi bi-flag-fill"></i> Sí, abandonar
-                </button>
+                <button type="button" class="btn btn-danger rounded-pill px-4 fw-bold shadow" onclick="executeSurrender()"><i class="bi bi-flag-fill"></i> Sí, abandonar</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- ========================================================= -->
-<!-- MÓDULO VISUAL: MINICHAT FLOTANTE MULTIJUGADOR             -->
-<!-- ========================================================= -->
 <style>
-    /* Transiciones suaves para la apertura del chat */
     #chatContainer {
         transform: translateY(120%);
         transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
         opacity: 0;
+        pointer-events: none;
+        background: rgba(15, 20, 30, 0.65) !important;
+        backdrop-filter: blur(10px) !important;
+        -webkit-backdrop-filter: blur(10px) !important;
     }
     #chatContainer.active {
         transform: translateY(0);
         opacity: 1;
+        pointer-events: auto;
     }
-    
-    /* Estilos para la galería de Stickers */
-    .sticker-btn {
-        width: 60px;
-        height: 60px;
-        cursor: pointer;
-        border-radius: 10px;
-        transition: transform 0.2s ease, background 0.2s ease;
-        padding: 5px;
-    }
-    .sticker-btn:hover {
-        transform: scale(1.15);
-        background: rgba(255, 255, 255, 0.1);
-    }
-    
-    /* Efecto de notita para el botón cuando está cerrado */
     .chat-notification-dot {
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 15px;
-        height: 15px;
-        background-color: #dc3545;
-        border-radius: 50%;
-        border: 2px solid #222;
-        display: none;
+        position: absolute; top: 0; right: 0; width: 15px; height: 15px;
+        background-color: #dc3545; border-radius: 50%; border: 2px solid #222; display: none;
     }
+    .emoji-btn-hover {
+        transition: transform 0.2s ease, background 0.2s ease;
+        width: 45px; height: 45px; object-fit: contain; cursor: pointer; padding: 5px; border-radius: 10px;
+    }
+    .emoji-btn-hover:hover {
+        transform: scale(1.25); background: rgba(255, 255, 255, 0.15) !important;
+    }
+    .chat-title-hover { cursor: pointer; transition: color 0.2s; }
+    .chat-title-hover:hover { color: #fff !important; }
 </style>
 
-<!-- Botón Flotante (Se muestra solo en modo Multi) -->
 <button id="btnToggleChat" class="btn btn-info rounded-circle shadow-lg position-fixed" 
         style="bottom: 25px; right: 25px; width: 60px; height: 60px; z-index: 1050; display: none; padding: 0;" 
         onclick="toggleChatUI()">
@@ -283,50 +160,66 @@
     <span id="chatNotifDot" class="chat-notification-dot"></span>
 </button>
 
-<!-- Contenedor principal del Minichat -->
 <div id="chatContainer" class="glass-panel position-fixed d-flex flex-column shadow-lg border-info" 
-     style="bottom: 95px; right: 25px; width: 330px; height: 450px; max-height: 65vh; z-index: 1050; display: none; background: rgba(15, 20, 30, 0.9);">
+     style="bottom: 95px; right: 25px; width: 330px; height: 450px; max-height: 65vh; z-index: 1050; display: none; overflow: hidden;">
     
-    <!-- Encabezado -->
-    <div class="p-3 border-bottom border-secondary d-flex justify-content-between align-items-center" style="background: rgba(0,0,0,0.3); border-radius: 15px 15px 0 0;">
-        <strong class="text-info m-0"><i class="bi bi-chat-text-fill"></i> Chat Privado</strong>
-        <button class="btn-close btn-close-white" onclick="toggleChatUI()"></button>
-    </div>
-
-    <!-- Área de Mensajes -->
-    <div id="chatMessages" class="flex-grow-1 p-3 overflow-auto d-flex flex-column" style="scroll-behavior: smooth;">
-        <div class="text-center text-muted small mt-2 mb-3 bg-dark rounded-pill py-1 px-3 mx-auto" style="opacity: 0.7;">¡Comienza el juego y el chat!</div>
-        <!-- Aquí inyecta lobby.js los mensajes dinámicamente -->
-    </div>
-
-    <!-- Selector de Stickers (Oculto por defecto) -->
-    <div id="stickerPicker" class="border-top border-secondary p-2" style="display: none; background: rgba(0,0,0,0.5); max-height: 140px; overflow-y: auto;">
-        <div class="d-flex flex-wrap gap-2 justify-content-center">
-            <!-- Stickers Públicos (GIF/WEBP animados transparentes) -->
-            <img src="https://media.tenor.com/2sXG4v-IlyMAAAAj/hello-wave.gif" class="sticker-btn" onclick="sendSticker(this.src)" alt="Hola">
-            <img src="https://media.tenor.com/bK1R3l1uOQQAAAAj/haha-lol.gif" class="sticker-btn" onclick="sendSticker(this.src)" alt="Risa">
-            <img src="https://media.tenor.com/aCaaXJm2U0oAAAAj/sad-crying.gif" class="sticker-btn" onclick="sendSticker(this.src)" alt="Triste">
-            <img src="https://media.tenor.com/7s1H3U5pFOkAAAAj/angry-mad.gif" class="sticker-btn" onclick="sendSticker(this.src)" alt="Enojado">
-            <img src="https://media.tenor.com/pZqPZ6T8KRAAAAAj/gg-good-game.gif" class="sticker-btn" onclick="sendSticker(this.src)" alt="GG">
-            <img src="https://media.tenor.com/815771QGzXAAAAAj/shocked-surprised.gif" class="sticker-btn" onclick="sendSticker(this.src)" alt="Wow">
+    <div class="p-3 border-bottom border-secondary d-flex justify-content-between align-items-center" style="background: rgba(0,0,0,0.5); z-index: 2;">
+        <strong class="text-info m-0 chat-title-hover" onclick="toggleChatSettings()" title="Ajustes Visuales">
+            <i class="bi bi-chat-text-fill"></i> Chat Privado <i class="bi bi-sliders ms-1 small"></i>
+        </strong>
+        <div>
+            <button class="btn btn-sm btn-outline-light border-0 py-0 px-1 me-2" id="btnPinChat" onclick="togglePinChat()" title="Fijar Chat (No cerrar al enviar)">
+                <i class="bi bi-pin-angle"></i>
+            </button>
+            <button class="btn-close btn-close-white" onclick="toggleChatUI(true)"></button>
         </div>
     </div>
 
-    <!-- Input Box -->
-    <div class="p-2 border-top border-secondary" style="background: rgba(0,0,0,0.3); border-radius: 0 0 15px 15px;">
+    <div id="chatSettingsPanel" class="position-absolute w-100 h-100 p-4" style="display: none; background: rgba(5, 10, 15, 0.95); top: 0; left: 0; z-index: 1060; backdrop-filter: blur(15px);">
+        <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-2 mt-2">
+            <span class="text-info fw-bold"><i class="bi bi-sliders"></i> Ajustes del Chat</span>
+            <button type="button" class="btn-close btn-close-white" onclick="toggleChatSettings()"></button>
+        </div>
+        <label class="form-label text-light mb-1">Opacidad de Fondo</label>
+        <input type="range" class="form-range mb-4" id="chatOpacity" min="0" max="1" step="0.05" value="0.65" oninput="updateChatStyle()">
+        <label class="form-label text-light mb-1">Desenfoque (Blur)</label>
+        <input type="range" class="form-range mb-4" id="chatBlur" min="0" max="20" step="1" value="10" oninput="updateChatStyle()">
+        <button class="btn btn-info w-100 rounded-pill mt-4 fw-bold shadow-sm" onclick="toggleChatSettings()">Listo</button>
+    </div>
+
+    <div id="chatMessages" class="flex-grow-1 p-3 overflow-auto d-flex flex-column" style="scroll-behavior: smooth;">
+        <div class="text-center text-muted small mt-2 mb-3 bg-dark rounded-pill py-1 px-3 mx-auto" style="opacity: 0.7;">¡Comienza el juego y el chat!</div>
+    </div>
+
+    <div id="stickerPicker" class="border-top border-secondary p-2" style="display: none; background: rgba(0,0,0,0.6); max-height: 180px; overflow-y: auto;">
+        <div class="d-flex flex-wrap gap-2 justify-content-center mb-2">
+            <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f923.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Risa">
+            <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f62d.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Llorar">
+            <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f621.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Enojado">
+            <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f631.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Sorpresa">
+            <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f60e.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Cool">
+            <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f480.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Calavera">
+            <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f525.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Fuego">
+            <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f44e.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Mal">
+        </div>
+        <div class="input-group input-group-sm mt-2 px-1">
+            <input type="url" id="customImgUrl" class="form-control bg-dark text-light border-secondary" placeholder="Pegar URL de GIF/JPG/PNG...">
+            <button class="btn btn-outline-info fw-bold" onclick="sendCustomImage()"><i class="bi bi-send-fill"></i></button>
+        </div>
+    </div>
+
+    <div class="p-2 border-top border-secondary" style="background: rgba(0,0,0,0.5); border-radius: 0 0 15px 15px;">
         <div class="input-group">
-            <button class="btn btn-outline-warning shadow-sm" type="button" onclick="toggleStickerPicker()" title="Stickers" style="border-radius: 10px 0 0 10px;">
+            <button class="btn btn-outline-warning shadow-sm" type="button" onclick="toggleStickerPicker()" title="Emojis / Imágenes" style="border-radius: 10px 0 0 10px;">
                 <i class="bi bi-emoji-smile-fill"></i>
             </button>
-            <input type="text" id="chatInputText" class="form-control glass-input text-white border-secondary" placeholder="Escribe un mensaje..." onkeypress="handleChatEnter(event)">
+            <input type="text" id="chatInputText" class="form-control glass-input text-white border-secondary" placeholder="Escribe..." onkeypress="handleChatEnter(event)">
             <button class="btn btn-info fw-bold shadow-sm" type="button" onclick="sendChatText()" style="border-radius: 0 10px 10px 0;">
                 <i class="bi bi-send-fill text-dark"></i>
             </button>
         </div>
     </div>
 </div>
-<!-- ========================================================= -->
-
 {% endblock %}
 
 {% block scripts %}
@@ -337,244 +230,344 @@
         statusBadge.innerHTML = '<i class="bi bi-wifi"></i> Conectado al Servidor (En línea)';
     });
 
-    socket.on('server_message', function(data) {
-        console.log("Servidor:", data.msg);
-    });
-
-    // ========================================================
-    // LÓGICA DE ESTADÍSTICAS POST-JUEGO
-    // ========================================================
     window.showPostGameStats = () => {
         if (window.currentGame) {
-            if (window.currentGame.mode === 'multi') {
-                // Si es online, abre las estadísticas de tu oponente
-                window.verEstadisticas(window.currentGame.opponent);
-            } else if (window.currentGame.mode === 'local' && window.currentGame.vsPC) {
-                // Si es contra PC, abre tu propio perfil para ver los globales
-                window.verMiPerfil(); 
-            }
+            if (window.currentGame.mode === 'multi') { window.verEstadisticas(window.currentGame.opponent); } 
+            else if (window.currentGame.mode === 'local' && window.currentGame.vsPC) { window.verMiPerfil(); }
         }
     };
 
-    // ========================================================
-    // LÓGICA PARA REINICIAR PARTIDA
-    // ========================================================
     window.reiniciarPartida = () => {
         if (bsGameOverModal) bsGameOverModal.hide();
-        
         if (window.currentGame) {
             if (window.currentGame.mode === 'local') {
-                // Reinicia el juego local (contra amigo o contra PC) usando la misma configuración
                 startLocalGame(window.currentGame.gameType, window.currentGame.vsPC);
             } else if (window.currentGame.mode === 'multi') {
-                // Si es multijugador, retamos de nuevo al oponente
                 let gameType = window.currentGame.gameType;
                 let opponent = window.currentGame.opponent;
-                
-                closeGameOver(); // Cierra el tablero actual y vuelve al menú
-                gameAwaiting = gameType; // Prepara el juego
-                enviarRetoDirecto(opponent); // Envía el reto a la otra persona
+                closeGameOver(); 
+                gameAwaiting = gameType; 
+                enviarRetoDirecto(opponent); 
             }
         }
     };
 
-    // ========================================================
-    // LÓGICA PARA FILTRAR JUGADORES ONLINE DIRECTO AL RETO
-    // ========================================================
     let gameAwaiting = null;
-
-    function buscarOnline(gameType) {
+    window.buscarOnline = function(gameType) {
         gameAwaiting = gameType;
         if(!window.CURRENT_USERNAME) { alert("Debes iniciar sesión para ver los jugadores."); return; }
-        
         document.getElementById('playersListContainer').innerHTML = '<div class="text-center"><div class="spinner-border text-info"></div></div>';
-        
         if(playersModalInst) playersModalInst.show();
-        
         socket.emit('solicitar_jugadores');
     }
 
-    // Sobrescribimos el evento que viene de lobby.js para aplicar nuestro filtro
-    socket.off('lista_jugadores');
-
-    socket.on('lista_jugadores', (jugadores) => {
-        const container = document.getElementById('playersListContainer');
-        container.innerHTML = '';
-        
-        // Si venimos de un botón "Buscar Partida Online", filtramos solo los conectados
-        let jugadoresAMostrar = jugadores;
-        if (gameAwaiting) {
-            jugadoresAMostrar = jugadores.filter(j => j.is_online);
-        }
-
-        if (jugadoresAMostrar.length === 0) {
-            container.innerHTML = '<p class="text-center text-muted mt-3">No hay jugadores conectados en este momento para jugar.</p>'; 
-            return;
-        }
-
-        jugadoresAMostrar.forEach(j => {
-            let statusHtml = j.is_online ? '<span class="status-indicator status-online"></span> <span class="text-success small">En línea</span>' 
-                                         : '<span class="status-indicator status-offline"></span> <span class="text-muted small">Desconectado</span>';
-            
-            let btnRetarHtml = '';
-            
-            // Si ya seleccionamos un juego, el botón envía el reto directo
-            if (gameAwaiting) {
-                let nombreJuego = gameAwaiting === 'gato' ? 'Gato' : (gameAwaiting === '4linea' ? '4 en Línea' : (gameAwaiting === 'damas' ? 'Damas' : (gameAwaiting === 'reversi' ? 'Reversi' : 'Gomoku')));
-                btnRetarHtml = j.is_online ? `<button class="btn btn-sm btn-outline-warning rounded-pill" onclick="enviarRetoDirecto('${j.username}')"><i class="bi bi-lightning-charge-fill"></i> Retar a ${nombreJuego}</button>` 
-                                           : `<button class="btn btn-sm btn-outline-secondary rounded-pill" disabled>Ausente</button>`;
-            } else {
-                // Comportamiento normal (abre modal para elegir juego)
-                btnRetarHtml = j.is_online ? `<button class="btn btn-sm btn-outline-warning rounded-pill" onclick="prepararReto('${j.username}')"><i class="bi bi-lightning-charge-fill"></i> Retar</button>` 
-                                           : `<button class="btn btn-sm btn-outline-secondary rounded-pill" disabled>Ausente</button>`;
-            }
-
-            let btnStatsHtml = `<button class="btn btn-sm btn-outline-info rounded-pill ms-2" onclick="verEstadisticas('${j.username}')"><i class="bi bi-bar-chart-line-fill"></i> Stats</button>`;
-
-            container.innerHTML += `
-                <div class="player-list-item d-flex justify-content-between align-items-center p-3 border-bottom border-secondary">
-                    <div>
-                        <strong><i class="bi bi-person-fill text-info"></i> ${j.username}</strong><br>
-                        ${statusHtml}
-                    </div>
-                    <div class="d-flex align-items-center">
-                        ${btnRetarHtml}
-                        ${btnStatsHtml}
-                    </div>
-                </div>
-            `;
-        });
-    });
-
-    function enviarRetoDirecto(username) {
+    window.enviarRetoDirecto = function(username) {
         if (playersModalInst) playersModalInst.hide();
         socket.emit('enviar_reto', { target: username, game_type: gameAwaiting });
-        
         let nombreJuego = gameAwaiting === 'gato' ? 'Gato' : (gameAwaiting === '4linea' ? '4 en Línea' : (gameAwaiting === 'damas' ? 'Damas' : (gameAwaiting === 'reversi' ? 'Reversi' : 'Gomoku')));
         alert(`Reto de ${nombreJuego} enviado a ${username}. Esperando respuesta...`);
-        
-        gameAwaiting = null; // Reseteamos la variable
+        gameAwaiting = null; 
     }
 
-    // Interceptamos el botón general "Jugadores" del menú para resetear el filtro
     const originalSolicitar = window.solicitarListaJugadores;
-    window.solicitarListaJugadores = () => {
-        gameAwaiting = null; // Quita el filtro, muestra a todos (conectados y desconectados)
-        if (originalSolicitar) originalSolicitar();
-    };
+    window.solicitarListaJugadores = () => { gameAwaiting = null; if (originalSolicitar) originalSolicitar(); };
 
-    // ========================================================
-    // LÓGICA DE ABANDONO DE PARTIDA (Reemplaza alerta nativa)
-    // ========================================================
     window.confirmSurrender = () => {
         let surrenderModalEl = document.getElementById('surrenderModal');
         let surrenderModalInst = bootstrap.Modal.getInstance(surrenderModalEl);
-        if (!surrenderModalInst) {
-            surrenderModalInst = new bootstrap.Modal(surrenderModalEl);
-        }
+        if (!surrenderModalInst) surrenderModalInst = new bootstrap.Modal(surrenderModalEl);
         surrenderModalInst.show();
     };
 
     window.executeSurrender = () => {
         let surrenderModalEl = document.getElementById('surrenderModal');
         let surrenderModalInst = bootstrap.Modal.getInstance(surrenderModalEl);
-        if (surrenderModalInst) {
-            surrenderModalInst.hide();
-        }
-        
-        // Al abandonar, también forzamos ocultar el chat
-        document.getElementById('btnToggleChat').style.display = 'none';
-        document.getElementById('chatContainer').classList.remove('active');
-        
-        // Llamamos a la función real de game.js para limpiar la partida
-        if (typeof closeGameOver === 'function') {
-            closeGameOver();
-        }
+        if (surrenderModalInst) surrenderModalInst.hide();
+        if (typeof closeGameOver === 'function') closeGameOver();
     };
 
     // ========================================================
-    // INTERFAZ DEL MINICHAT (INTERACCIONES LOCALES)
+    // LÓGICA MAESTRA DEL CHAT (SOLO AGREGA LISTENERS, NUNCA BORRA)
     // ========================================================
-    
-    // Abre y cierra el panel visual
-    window.toggleChatUI = () => {
+    window.isChatPinned = false;
+
+    window.updateChatStyle = () => {
+        const container = document.getElementById('chatContainer');
+        const opacity = document.getElementById('chatOpacity').value;
+        const blur = document.getElementById('chatBlur').value;
+        if (container) {
+            container.style.setProperty('background', `rgba(15, 20, 30, ${opacity})`, 'important');
+            container.style.setProperty('backdrop-filter', `blur(${blur}px)`, 'important');
+            container.style.setProperty('-webkit-backdrop-filter', `blur(${blur}px)`, 'important');
+        }
+    };
+
+    document.addEventListener("DOMContentLoaded", () => {
+        window.updateChatStyle();
+    });
+
+    window.togglePinChat = () => {
+        window.isChatPinned = !window.isChatPinned;
+        const btn = document.getElementById('btnPinChat');
+        if (!btn) return;
+        if (window.isChatPinned) {
+            btn.innerHTML = '<i class="bi bi-pin-fill text-warning"></i>';
+            btn.classList.add('active');
+        } else {
+            btn.innerHTML = '<i class="bi bi-pin-angle"></i>';
+            btn.classList.remove('active');
+        }
+    };
+
+    window.toggleChatUI = (forceClose = false) => {
         const chatContainer = document.getElementById('chatContainer');
+        if (!chatContainer) return;
         const notifDot = document.getElementById('chatNotifDot');
-        
-        // Quitamos el punto rojo si estaba
         if (notifDot) notifDot.style.display = 'none';
         
-        if (chatContainer.classList.contains('active')) {
+        if (forceClose || chatContainer.classList.contains('active')) {
             chatContainer.classList.remove('active');
-            // Cerramos la galería de stickers si estaba abierta al cerrar el chat
-            document.getElementById('stickerPicker').style.display = 'none';
+            const stickerPicker = document.getElementById('stickerPicker');
+            if (stickerPicker) stickerPicker.style.display = 'none';
+            const settingsPanel = document.getElementById('chatSettingsPanel');
+            if (settingsPanel) settingsPanel.style.display = 'none';
+            
+            const input = document.getElementById('chatInputText');
+            if (input) input.blur(); 
         } else {
-            chatContainer.style.display = 'flex'; // Aseguramos que no esté en display:none
-            // Un micro-delay para permitir la transición CSS
+            chatContainer.style.display = 'flex'; 
+            void chatContainer.offsetWidth; 
+            chatContainer.classList.add('active');
             setTimeout(() => {
-                chatContainer.classList.add('active');
-                // Scrolleamos abajo por si llegaron mensajes mientras estaba cerrado
                 const msgBox = document.getElementById('chatMessages');
-                msgBox.scrollTop = msgBox.scrollHeight;
-                document.getElementById('chatInputText').focus();
-            }, 10);
+                if (msgBox) msgBox.scrollTop = msgBox.scrollHeight;
+                const input = document.getElementById('chatInputText');
+                if (input && window.innerWidth > 768) input.focus();
+            }, 50);
         }
     };
 
-    // Muestra u oculta la galería de stickers
     window.toggleStickerPicker = () => {
         const picker = document.getElementById('stickerPicker');
-        picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+        if (picker) picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
     };
 
-    // Al hacer clic en un sticker, lo manda al backend y limpia
+    window.toggleChatSettings = () => {
+        const settings = document.getElementById('chatSettingsPanel');
+        const picker = document.getElementById('stickerPicker');
+        if (picker) picker.style.display = 'none'; 
+        if (settings) settings.style.display = settings.style.display === 'none' ? 'block' : 'none';
+    };
+
     window.sendSticker = (url) => {
-        if (typeof window.enviarMensajeChat === 'function') {
-            window.enviarMensajeChat(null, url);
-            toggleStickerPicker(); // Cerramos la galería al enviar
+        if (!window.currentGame || window.currentGame.mode !== 'multi') return;
+        socket.emit('enviar_mensaje_chat', { room: window.currentGame.roomId, mensaje: null, sticker: url });
+        window.mostrarMensajeEnUI(window.CURRENT_USERNAME, null, url, true);
+        
+        const inputImg = document.getElementById('customImgUrl');
+        if(inputImg) inputImg.value = '';
+        
+        if (!window.isChatPinned) {
+            window.toggleChatUI(true);
+        } else {
+            const picker = document.getElementById('stickerPicker');
+            if(picker) picker.style.display = 'none';
         }
     };
 
-    // Al hacer clic en enviar texto
+    window.sendCustomImage = () => {
+        const input = document.getElementById('customImgUrl');
+        if(!input) return;
+        const url = input.value.trim();
+        if(url !== "") window.sendSticker(url);
+    };
+
     window.sendChatText = () => {
         const input = document.getElementById('chatInputText');
+        if (!input) return;
         const text = input.value.trim();
-        if (text !== '' && typeof window.enviarMensajeChat === 'function') {
-            window.enviarMensajeChat(text, null);
-            input.value = ''; // Limpiamos el cajón
+        
+        if (text !== '') {
+            if (!window.currentGame || window.currentGame.mode !== 'multi') return;
+            socket.emit('enviar_mensaje_chat', { room: window.currentGame.roomId, mensaje: text, sticker: null });
+            window.mostrarMensajeEnUI(window.CURRENT_USERNAME, text, null, true);
+            input.value = ''; 
+            
+            if (!window.isChatPinned) {
+                window.toggleChatUI(true);
+            } else {
+                input.focus();
+            }
         }
     };
 
-    // Permite enviar mensajes presionando "Enter"
     window.handleChatEnter = (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            sendChatText();
+            window.sendChatText();
         }
     };
 
-    // ========================================================
-    // INTERCEPCIÓN INTELIGENTE: MODO MULTI VS LOCAL
-    // ========================================================
-    
-    // Cuando el socket nos dice que empezó el multi, MOSTRAMOS el botón de chat
-    socket.on('game_started', () => {
-        document.getElementById('btnToggleChat').style.display = 'block';
-        document.getElementById('chatContainer').style.display = 'flex'; // Lo pre-cargamos oculto abajo
-        document.getElementById('chatContainer').classList.remove('active'); // Nos aseguramos que empiece cerrado
-        document.getElementById('chatMessages').innerHTML = '<div class="text-center text-muted small mt-2 mb-3 bg-dark rounded-pill py-1 px-3 mx-auto" style="opacity: 0.7;">¡Comienza el juego y el chat!</div>';
+    document.addEventListener('click', (e) => {
+        const chatCont = document.getElementById('chatContainer');
+        const toggleBtn = document.getElementById('btnToggleChat');
+        if (chatCont && chatCont.classList.contains('active') && !window.isChatPinned) {
+            if (!chatCont.contains(e.target) && !toggleBtn.contains(e.target)) {
+                if (!e.target.closest('.modal') && !e.target.closest('.reto-overlay')) {
+                    window.toggleChatUI(true);
+                }
+            }
+        }
     });
 
-    // Interceptamos el botón jugar "Local / PC" para OCULTAR el chat
-    const originalStartLocal = window.startLocalGame;
-    window.startLocalGame = function(...args) {
-        document.getElementById('btnToggleChat').style.display = 'none';
-        document.getElementById('chatContainer').classList.remove('active');
-        document.getElementById('chatContainer').style.display = 'none';
+    // ========================================================
+    // RENDERIZADO DEL CHAT Y DEL "TRASH TALK BANNER"
+    // ========================================================
+    socket.on('recibir_mensaje_chat', (data) => {
+        window.mostrarMensajeEnUI(data.remitente, data.mensaje, data.sticker, false);
+    });
+
+    window.mostrarMensajeEnUI = (remitente, mensaje, stickerUrl, esMio) => {
+        const chatMessages = document.getElementById('chatMessages');
+        if (!chatMessages) return;
+
+        const alignClass = esMio ? 'text-end' : 'text-start';
+        const bgClass = esMio ? 'bg-info text-dark' : 'bg-secondary text-light';
+        const marginClass = esMio ? 'ms-auto' : 'me-auto';
+        const radiusClass = esMio ? 'border-radius: 15px 15px 0 15px;' : 'border-radius: 15px 15px 15px 0;';
+
+        let contenido = '';
+        if (stickerUrl) {
+            contenido = `<img src="${stickerUrl}" alt="Imagen" style="max-width: 120px; max-height: 120px; object-fit: contain; background: transparent; border-radius: 5px;">`;
+        } else if (mensaje) {
+            const safeMensaje = mensaje.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            contenido = `<span style="word-wrap: break-word;">${safeMensaje}</span>`;
+        }
+
+        const msgHtml = `
+            <div class="${alignClass} mb-3">
+                <small class="text-muted d-block mb-1" style="font-size: 0.7rem; opacity: 0.8;">${remitente}</small>
+                <div class="d-inline-block p-2 shadow-sm ${bgClass} ${marginClass}" style="max-width: 85%; ${radiusClass}">
+                    ${contenido}
+                </div>
+            </div>
+        `;
+
+        chatMessages.insertAdjacentHTML('beforeend', msgHtml);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
         
-        if (originalStartLocal) {
-            originalStartLocal.apply(this, args);
+        if (!esMio) {
+            if (typeof window.playMoveSound === 'function') window.playMoveSound();
+            const btnToggle = document.getElementById('btnToggleChat');
+            const chatContainer = document.getElementById('chatContainer');
+            if (btnToggle && chatContainer && !chatContainer.classList.contains('active')) {
+                btnToggle.classList.remove('btn-info');
+                btnToggle.classList.add('btn-danger', 'animate__animated', 'animate__tada');
+                const notifDot = document.getElementById('chatNotifDot');
+                if (notifDot) notifDot.style.display = 'block';
+                setTimeout(() => {
+                    btnToggle.classList.remove('animate__tada', 'btn-danger');
+                    btnToggle.classList.add('btn-info');
+                }, 1500);
+            }
+        }
+
+        // --- BANNER DE PROVOCACIÓN DEBAJO DEL TABLERO ---
+        let banner = document.getElementById('lastMessageBanner');
+        if (!banner) {
+            const gameBoard = document.getElementById('gameBoard');
+            if (gameBoard) {
+                banner = document.createElement('div');
+                banner.id = 'lastMessageBanner';
+                banner.className = 'glass-panel p-3 text-center animate__animated';
+                banner.style.cssText = 'display: none; border-radius: 12px; background: rgba(10, 15, 25, 0.95); border: 2px solid #0dcaf0; box-shadow: 0 0 15px rgba(13,202,240,0.6); transition: all 0.3s ease; margin-top: 30px; margin-bottom: 20px; width: 100%; max-width: 500px; position: relative; z-index: 10;';
+                banner.innerHTML = `
+                    <div class="d-flex align-items-center justify-content-center flex-column" style="min-height: 50px; width: 100%;">
+                        <span id="lastMessageSender" class="fw-bold mb-1 text-uppercase" style="font-size: 0.8rem; letter-spacing: 2px; opacity: 0.8;"></span>
+                        <div id="lastMessageContent" class="d-flex align-items-center justify-content-center" style="font-size: 1.3rem;"></div>
+                    </div>
+                `;
+                gameBoard.parentNode.insertBefore(banner, gameBoard.nextSibling);
+            }
+        }
+
+        if (banner) {
+            if (banner.hideTimeout) clearTimeout(banner.hideTimeout);
+            banner.style.display = 'block';
+            banner.style.opacity = '1';
+            banner.classList.remove('animate__fadeOutDown'); 
+            
+            const senderSpan = document.getElementById('lastMessageSender');
+            const contentSpan = document.getElementById('lastMessageContent');
+            senderSpan.innerText = remitente + ' dice:';
+            senderSpan.className = esMio ? 'fw-bold text-success text-uppercase' : 'fw-bold text-warning text-uppercase';
+            banner.style.borderColor = esMio ? '#198754' : '#ffc107'; 
+            banner.style.boxShadow = esMio ? '0 0 15px rgba(25,135,84,0.6)' : '0 0 15px rgba(255,193,7,0.6)';
+            
+            if (stickerUrl) {
+                contentSpan.innerHTML = `<img src="${stickerUrl}" style="max-height: 80px; max-width: 120px; object-fit: contain;" class="animate__animated animate__tada">`;
+            } else {
+                const safeMensaje = mensaje.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                contentSpan.innerHTML = `<span style="font-size: 1.3rem;" class="d-inline-block text-white fw-bold animate__animated animate__pulse">${safeMensaje}</span>`;
+            }
+            
+            banner.classList.remove('animate__bounceInUp');
+            void banner.offsetWidth; 
+            banner.classList.add('animate__bounceInUp');
+            
+            banner.hideTimeout = setTimeout(() => {
+                banner.classList.remove('animate__bounceInUp');
+                banner.classList.add('animate__fadeOutDown');
+                setTimeout(() => {
+                    if (banner.classList.contains('animate__fadeOutDown')) {
+                        banner.style.display = 'none';
+                        banner.classList.remove('animate__fadeOutDown');
+                    }
+                }, 800);
+            }, 5000);
         }
     };
+
+    // ========================================================
+    // INTERCEPCIONES INOFENSIVAS PARA EL BOTÓN CHAT
+    // ========================================================
+    socket.on('game_started', () => {
+        const btnToggleChat = document.getElementById('btnToggleChat');
+        if (btnToggleChat) btnToggleChat.style.display = 'block';
+        const chatContainer = document.getElementById('chatContainer');
+        if (chatContainer) {
+            chatContainer.classList.remove('active');
+            chatContainer.style.display = 'none'; 
+            const chatMessages = document.getElementById('chatMessages');
+            if (chatMessages) chatMessages.innerHTML = '<div class="text-center text-muted small mt-2 mb-3 bg-dark rounded-pill py-1 px-3 mx-auto" style="opacity: 0.7;">¡Comienza el juego y el chat!</div>';
+        }
+    });
+
+    const originalStartLocal = window.startLocalGame;
+    window.startLocalGame = function(...args) {
+        window.toggleChatUI(true);
+        const btnToggleChat = document.getElementById('btnToggleChat');
+        if (btnToggleChat) btnToggleChat.style.display = 'none';
+        if (originalStartLocal) originalStartLocal.apply(this, args);
+    };
+
+    document.addEventListener("DOMContentLoaded", () => {
+        setTimeout(() => {
+            if (typeof window.closeGameOver === 'function') {
+                const originalCloseGameOver = window.closeGameOver;
+                window.closeGameOver = function(...args) {
+                    const banner = document.getElementById('lastMessageBanner');
+                    if (banner) {
+                        if (banner.hideTimeout) clearTimeout(banner.hideTimeout);
+                        banner.style.display = 'none';
+                    }
+                    const btnToggle = document.getElementById('btnToggleChat');
+                    if (btnToggle) btnToggle.style.display = 'none';
+                    window.toggleChatUI(true);
+                    originalCloseGameOver.apply(this, args);
+                };
+            }
+        }, 1000);
+    });
 </script>
 {% endblock %}

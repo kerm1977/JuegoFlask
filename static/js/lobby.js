@@ -7,13 +7,12 @@
 
 // Solución: Pasar el origen de la URL explícitamente para que autoConnect: false funcione al 100%
 const socket = io(window.location.origin, {
-    autoConnect: false,             // <-- Evita el bloqueo del servidor en el Login
+    autoConnect: false,             
     reconnection: true,             
     reconnectionAttempts: Infinity, 
     reconnectionDelay: 1000         
 });
 
-// Validación súper estricta para conectar el Socket SOLO si el usuario inició sesión
 const nombreUsuario = window.CURRENT_USERNAME ? String(window.CURRENT_USERNAME).trim() : "";
 const estaAutenticado = nombreUsuario !== "" && nombreUsuario !== "None" && nombreUsuario !== "False";
 
@@ -28,7 +27,7 @@ let playersModalInst = null;
 let selectGameModalInst = null;
 let rechazarModalInst = null;
 let statsModalInst = null;
-let waitingModalInst = null; // Instancia del Modal de Espera (Glassmorphism)
+let waitingModalInst = null;
 
 document.addEventListener("DOMContentLoaded", () => {
     if(document.getElementById('playersModal')) playersModalInst = new bootstrap.Modal(document.getElementById('playersModal'));
@@ -40,10 +39,6 @@ document.addEventListener("DOMContentLoaded", () => {
 // [MÓDULO: LOBBY] - LISTA DE JUGADORES
 // ==========================================
 
-/**
- * Muestra el modal de jugadores y envía un evento al servidor para obtener la lista
- * actualizada de usuarios conectados y desconectados.
- */
 window.solicitarListaJugadores = () => {
     if(!estaAutenticado) { console.warn("Debes iniciar sesión para ver los jugadores."); return; }
     document.getElementById('playersListContainer').innerHTML = '<div class="text-center p-4"><div class="spinner-border text-info"></div></div>';
@@ -51,16 +46,13 @@ window.solicitarListaJugadores = () => {
     socket.emit('solicitar_jugadores');
 };
 
-// Escuchar cambios de estado (conectado/desconectado) en tiempo real
 socket.on('online_users_updated', () => {
     const modalEl = document.getElementById('playersModal');
-    // Si el modal está abierto en pantalla, volvemos a pedir la lista automáticamente
     if (modalEl && modalEl.classList.contains('show')) {
         socket.emit('solicitar_jugadores');
     }
 });
 
-// Recibe la lista detallada de jugadores y la renderiza en el modal correspondiente.
 socket.on('lista_jugadores', (jugadores) => {
     const container = document.getElementById('playersListContainer');
     if (!container) return;
@@ -72,7 +64,7 @@ socket.on('lista_jugadores', (jugadores) => {
 
     let listHtml = '<div class="list-group list-group-flush">';
     jugadores.forEach(j => {
-        if (j.username !== nombreUsuario) { // Evitamos mostrarnos a nosotros mismos
+        if (j.username !== nombreUsuario) { 
             let statusHtml = j.is_online ? '<span class="status-indicator status-online"></span> <span class="text-success small">En línea</span>' 
                                          : '<span class="status-indicator status-offline"></span> <span class="text-muted small">Desconectado</span>';
             
@@ -143,7 +135,6 @@ window.enviarReto = (gameType) => {
 
     let gameName = gameType === 'gato' ? 'Gato' : (gameType === '4linea' ? '4 en Línea' : (gameType === 'damas' ? 'Damas' : (gameType === 'reversi' ? 'Reversi' : 'Gomoku')));
 
-    // Desplegamos el Modal Glassmorphism de espera
     if (!waitingModalInst) waitingModalInst = getOrCreateWaitingModal();
     document.getElementById('waitingModalTitle').innerHTML = `<i class="bi bi-hourglass-split"></i> Reto de ${gameName}`;
     document.getElementById('waitingModalMessage').innerHTML = `El reto ha sido enviado a <strong class="text-info">${targetUserToChallenge}</strong>.<br><span class="text-muted small">Esperando respuesta...</span>`;
@@ -155,7 +146,6 @@ window.cancelarRetoEnviado = () => {
     targetUserToChallenge = null;
 };
 
-// Muestra la pantalla gigante cuando recibimos un reto
 socket.on('recibir_reto', (data) => {
     currentChallenger = data.retador;
     currentGameToPlay = data.game_type;
@@ -199,7 +189,6 @@ window.cancelarRechazo = () => {
     if (overlay) overlay.style.display = 'flex';
 };
 
-// Modal de Rechazo (Glassmorphism)
 socket.on('reto_rechazado', (data) => {
     if (waitingModalInst) waitingModalInst.hide();
     
@@ -224,7 +213,6 @@ socket.on('reto_rechazado', (data) => {
         rejectedModalEl = document.getElementById('rejectedModal');
     }
     
-    // Aquí soportamos si el servidor envía 'target' o 'retado'
     let usernameRechazador = data.target || data.retado || "El jugador";
     document.getElementById('rejectedModalMessage').innerHTML = `<strong class="text-info">${usernameRechazador}</strong> ha rechazado tu desafío.`;
     const rejectedModalInst = new bootstrap.Modal(rejectedModalEl);
@@ -233,13 +221,9 @@ socket.on('reto_rechazado', (data) => {
     targetUserToChallenge = null;
 });
 
-// 🚀 FIX: Destrucción forzada de ventanas de espera al iniciar la partida
 socket.on('game_started', () => {
-    if (waitingModalInst) {
-        waitingModalInst.hide();
-    }
+    if (waitingModalInst) waitingModalInst.hide();
     
-    // Forzamos la limpieza del DOM para quitar cualquier bloqueo (Backdrop oscuro)
     document.body.classList.remove('modal-open');
     document.body.style.overflow = '';
     document.body.style.paddingRight = '';
@@ -252,32 +236,16 @@ socket.on('game_started', () => {
 window.currentStatsData = [];
 window.currentStatsPage = 1;
 
-/**
- * Muestra el perfil del usuario actual (el que tiene la sesión iniciada)
- * reutilizando el modal de estadísticas.
- */
 window.verMiPerfil = () => {
-    if (!estaAutenticado) {
-        console.warn("Debes iniciar sesión para ver tu perfil.");
-        return;
-    }
-    // Ocultamos otros modales si estuvieran abiertos
+    if (!estaAutenticado) return;
     if(playersModalInst) playersModalInst.hide();
     const statsModal = getOrCreateStatsModal();
-    
-    // Cambiamos el título para que diga "Mi Perfil"
     document.getElementById('statsModalTitle').innerHTML = `<i class="bi bi-person-badge"></i> Mi Perfil (${window.CURRENT_USERNAME})`;
     document.getElementById('statsModalBody').innerHTML = '<div class="text-center my-4"><div class="spinner-border text-info"></div><p class="mt-2 text-muted">Cargando tus datos...</p></div>';
     statsModal.show();
-    
-    // Solicitamos las estadísticas para nosotros mismos
     socket.emit('solicitar_estadisticas', { username: window.CURRENT_USERNAME });
 };
 
-/**
- * Construye dinámicamente el modal de estadísticas en el DOM si no existe,
- * y devuelve la instancia de Bootstrap del modal.
- */
 function getOrCreateStatsModal() {
     let modalEl = document.getElementById('statsModal');
     if (!modalEl) {
@@ -298,7 +266,6 @@ function getOrCreateStatsModal() {
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         modalEl = document.getElementById('statsModal');
         
-        // Manejar el cierre del modal para regresar al modal de jugadores SI este no era el perfil
         modalEl.addEventListener('hidden.bs.modal', function () {
             let titleText = document.getElementById('statsModalTitle').innerText;
             if (playersModalInst && !titleText.includes("Mi Perfil")) {
@@ -310,10 +277,6 @@ function getOrCreateStatsModal() {
     return statsModalInst;
 }
 
-/**
- * Muestra el modal de estadísticas y emite un evento para pedir los datos al servidor.
- * @param {string} username - El usuario del cual queremos ver el historial.
- */
 window.verEstadisticas = (username) => {
     if(playersModalInst) playersModalInst.hide();
     const statsModal = getOrCreateStatsModal();
@@ -323,7 +286,6 @@ window.verEstadisticas = (username) => {
     socket.emit('solicitar_estadisticas', { username: username });
 };
 
-// Recibe el historial de la BD, lo agrupa por oponente/juego y llama al renderizado paginado.
 socket.on('recibir_estadisticas', (data) => {
     const body = document.getElementById('statsModalBody');
     if(!body) return;
@@ -368,10 +330,6 @@ socket.on('recibir_estadisticas', (data) => {
     renderStatsPage(1);
 });
 
-/**
- * Función de paginación que renderiza una página específica del historial (10 ítems por página).
- * @param {number} page - El número de página a renderizar.
- */
 window.renderStatsPage = (page) => {
     window.currentStatsPage = page;
     const container = document.getElementById('statsListContainer');
@@ -425,92 +383,4 @@ window.renderStatsPage = (page) => {
         }
     }
     pagination.innerHTML = pagHtml;
-};
-
-// ==========================================
-// [MÓDULO: CHAT] - MINICHAT MULTIJUGADOR Y STICKERS
-// ==========================================
-
-/**
- * Envía un mensaje de texto o un sticker al oponente en la sala actual.
- */
-window.enviarMensajeChat = (mensaje, stickerUrl = null) => {
-    // Validar que exista una partida multijugador activa
-    if (!window.currentGame || window.currentGame.mode !== 'multi') return;
-    
-    // Evitar enviar si ambos están vacíos
-    if (!mensaje && !stickerUrl) return;
-    
-    socket.emit('enviar_mensaje_chat', {
-        room: window.currentGame.roomId,
-        mensaje: mensaje,
-        sticker: stickerUrl
-    });
-
-    // Mostrar nuestro propio mensaje localmente
-    window.mostrarMensajeEnUI(window.CURRENT_USERNAME, mensaje, stickerUrl, true);
-};
-
-// Recibe el mensaje de Socket.IO que envió el oponente
-socket.on('recibir_mensaje_chat', (data) => {
-    window.mostrarMensajeEnUI(data.remitente, data.mensaje, data.sticker, false);
-});
-
-/**
- * Dibuja el mensaje o el sticker en el contenedor HTML del chat.
- */
-window.mostrarMensajeEnUI = (remitente, mensaje, stickerUrl, esMio) => {
-    const chatMessages = document.getElementById('chatMessages');
-    if (!chatMessages) return;
-
-    // Estilos dinámicos dependiendo de si el mensaje es nuestro o del oponente
-    const alignClass = esMio ? 'text-end' : 'text-start';
-    const bgClass = esMio ? 'bg-info text-dark' : 'bg-secondary text-light';
-    const marginClass = esMio ? 'ms-auto' : 'me-auto';
-    // Globos de chat con esquinas redondeadas al estilo WhatsApp
-    const radiusClass = esMio ? 'border-radius: 15px 15px 0 15px;' : 'border-radius: 15px 15px 15px 0;';
-
-    let contenido = '';
-    
-    if (stickerUrl) {
-        // Renderizado del Sticker animado
-        contenido = `<img src="${stickerUrl}" alt="Sticker" style="width: 90px; height: 90px; object-fit: contain; background: transparent;">`;
-    } else if (mensaje) {
-        // Escapar HTML para seguridad (evitar inyección de código)
-        const safeMensaje = mensaje.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        contenido = `<span style="word-wrap: break-word;">${safeMensaje}</span>`;
-    }
-
-    const msgHtml = `
-        <div class="${alignClass} mb-3">
-            <small class="text-muted d-block mb-1" style="font-size: 0.7rem; opacity: 0.8;">${remitente}</small>
-            <div class="d-inline-block p-2 shadow-sm ${bgClass} ${marginClass}" style="max-width: 85%; ${radiusClass}">
-                ${contenido}
-            </div>
-        </div>
-    `;
-
-    chatMessages.insertAdjacentHTML('beforeend', msgHtml);
-    
-    // Auto-scroll hacia el último mensaje para que siempre se vea lo más nuevo
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-    
-    // Si recibimos un mensaje, reproducimos un pequeño sonido (opcional) y animamos el botón si el chat está cerrado
-    if (!esMio) {
-        if (typeof window.playMoveSound === 'function') window.playMoveSound();
-        
-        const btnToggle = document.getElementById('btnToggleChat');
-        const chatContainer = document.getElementById('chatContainer');
-        
-        // Si el contenedor de chat no tiene la clase 'chat-open' (o similar que implementaremos en CSS), hacemos temblar el botón
-        if (btnToggle && chatContainer && !chatContainer.classList.contains('active')) {
-            btnToggle.classList.remove('btn-info');
-            btnToggle.classList.add('btn-danger', 'animate__animated', 'animate__tada'); // Requiere animate.css o puedes usar un CSS custom
-            
-            setTimeout(() => {
-                btnToggle.classList.remove('animate__tada', 'btn-danger');
-                btnToggle.classList.add('btn-info');
-            }, 1500);
-        }
-    }
 };
