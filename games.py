@@ -12,6 +12,7 @@ games_bp = Blueprint('games', __name__)
 
 online_users = {} 
 active_games = {} 
+chat_rooms = {} # <-- NUEVO: Registro permanente para asegurar la entrega de chats
 
 @games_bp.route('/')
 @games_bp.route('/dashboard')
@@ -35,8 +36,6 @@ def handle_disconnect():
             if game.get('player1') == current_user.username or game.get('player2') == current_user.username:
                 emit('opponent_disconnected', room=room_id)
         
-        # FIX CRÍTICO: Evitar que recargar la página (F5) te borre de la lista de conectados
-        # Solo te borra si la conexión que se cerró es la que estaba activa actualmente
         if current_user.username in online_users:
             if online_users[current_user.username] == request.sid:
                 del online_users[current_user.username]
@@ -56,7 +55,6 @@ def send_players_list():
             })
     emit('lista_jugadores', players_data)
 
-# --- DATOS 100% REALES DE LA BASE DE DATOS ---
 @socketio.on('solicitar_estadisticas')
 def enviar_estadisticas(data):
     username = data.get('username')
@@ -65,21 +63,18 @@ def enviar_estadisticas(data):
     if not user:
         return
 
-    # Buscar todo el historial de este usuario, ordenado del más reciente al más antiguo
     historial_db = Historial.query.filter_by(jugador_id=user.id).order_by(Historial.fecha.desc()).all()
     
     victorias = sum(1 for h in historial_db if h.resultado == 'Victoria')
     derrotas = sum(1 for h in historial_db if h.resultado == 'Derrota')
     empates = sum(1 for h in historial_db if h.resultado == 'Empate')
     
-    # Preparamos TODAS las partidas para enviarlas (el frontend las agrupa y pagina)
     historial_list = []
     for h in historial_db:
-        # Extraer fecha con un formato legible si existe
         fecha_str = h.fecha.strftime("%Y-%m-%d %H:%M") if hasattr(h, 'fecha') and h.fecha else "Fecha no registrada"
         
         historial_list.append({
-            "id": h.id,              # IMPORTANTE: Necesario para poder eliminar el registro
+            "id": h.id,              
             "oponente": h.oponente,
             "juego": h.juego.upper(),
             "resultado": h.resultado,
@@ -128,34 +123,34 @@ def handle_challenge_response(data):
             'player2': current_user.username
         }
         
+        # 🔥 FIX CRÍTICO: Guardamos permanentemente quién juega con quién para que el chat no se pierda
+        chat_rooms[room_id] = [retador_username, current_user.username]
+        
         emit('game_started', {'roomId': room_id, 'gameType': game_type, 'myPlayerNum': 1, 'opponent': current_user.username}, room=retador_sid)
         emit('game_started', {'roomId': room_id, 'gameType': game_type, 'myPlayerNum': 2, 'opponent': retador_username}, room=request.sid)
 
-# --- GUARDA LA PARTIDA CUANDO ALGUIEN GANA ---
 @socketio.on('make_move')
 def handle_move(data):
     room_id = data.get('room')
     winner_num = data.get('winnerNum')
 
-    # Si alguien ganó o hubo empate, lo guardamos en la base de datos
     if winner_num != 0 and room_id in active_games:
         game_info = active_games[room_id]
         player1_username = game_info['player1']
         player2_username = game_info['player2']
         game_type = game_info['type']
         
-        if winner_num == -1: # Empate
+        if winner_num == -1: 
             res_p1, res_p2 = 'Empate', 'Empate'
-        elif winner_num == 1: # Gana Player 1 (Rojo)
+        elif winner_num == 1: 
             res_p1, res_p2 = 'Victoria', 'Derrota'
-        elif winner_num == 2: # Gana Player 2 (Azul)
+        elif winner_num == 2: 
             res_p1, res_p2 = 'Derrota', 'Victoria'
 
         user1 = User.query.filter_by(username=player1_username).first()
         user2 = User.query.filter_by(username=player2_username).first()
 
         if user1 and user2:
-            # Guardamos los historiales de ambos jugadores
             h1 = Historial(jugador_id=user1.id, oponente=player2_username, juego=game_type, resultado=res_p1)
             h2 = Historial(jugador_id=user2.id, oponente=player1_username, juego=game_type, resultado=res_p2)
             
@@ -163,7 +158,6 @@ def handle_move(data):
             db.session.add(h2)
             db.session.commit()
         
-        # Eliminamos la partida activa para no guardarla por duplicado
         del active_games[room_id]
 
     emit('update_board', {
@@ -195,13 +189,30 @@ def handle_chat_message(data):
     mensaje = data.get('mensaje')
     sticker = data.get('sticker')
     
-    # Verificamos que la sala exista y retransmitimos al oponente (include_self=False)
-    if room_id in active_games:
-        emit('recibir_mensaje_chat', {
-            'remitente': current_user.username,
-            'mensaje': mensaje,
-            'sticker': sticker
-        }, room=room_id, include_self=False)
+    # 🔥 FIX DEFINITIVO: Enrutamiento directo al oponente
+    # Evita que el chat se vuelva errático si hay micro-desconexiones de red
+    if room_id in chat_rooms:
+        usuarios = chat_rooms[room_id]
+        # Identificar quién es el oponente
+        oponente = usuarios[0] if usuarios[1] == current_user.username else usuarios[1]
+        
+        # Obtener el ID de red fresco y actualizado del oponente
+        target_sid = online_users.get(oponente)
+        
+        if target_sid:
+            emit('recibir_mensaje_chat', {
+                'remitente': current_user.username,
+                'mensaje': mensaje,
+                'sticker': sticker
+            }, room=target_sid)
+    else:
+        # Fallback de seguridad
+        if room_id:
+            emit('recibir_mensaje_chat', {
+                'remitente': current_user.username,
+                'mensaje': mensaje,
+                'sticker': sticker
+            }, room=room_id, include_self=False)
 
 # ========================================================
 # NUEVO: PERMITE BORRAR EL HISTORIAL DESDE EL PERFIL
@@ -212,7 +223,6 @@ def eliminar_registro(data):
         record_id = data.get('id')
         if record_id:
             registro = Historial.query.get(record_id)
-            # Validar que el registro exista y sea propiedad del usuario actual
             if registro and registro.jugador_id == current_user.id:
                 db.session.delete(registro)
                 db.session.commit()
