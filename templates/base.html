@@ -17,6 +17,9 @@
 
     <!-- Bootstrap CSS y Custom CSS (Glassmorphism) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    
+    <!-- Animate.css para Animaciones de Notificaciones y Stickers -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
 </head>
 <body class="bg-dark text-light pb-5"> <!-- pb-5 para dar espacio a la barra móvil -->
     
@@ -42,7 +45,6 @@
 
                     {% if current_user.is_authenticated %}
                     <li class="nav-item me-3">
-                        <!-- CORREGIDO: Ahora es un <a> con href hacia users.profile -->
                         <a class="btn btn-outline-info btn-sm rounded-pill fw-bold" href="{{ url_for('users.profile') }}">
                             <i class="bi bi-person-badge"></i> Mi Perfil
                         </a>
@@ -85,7 +87,6 @@
             <i class="bi bi-people"></i>
             <span>Jugadores</span>
         </a>
-        <!-- CORREGIDO: Ahora redirige a users.profile en lugar de ejecutar onclick -->
         <a href="{{ url_for('users.profile') }}" class="mobile-nav-item">
             <i class="bi bi-person-badge"></i>
             <span>Perfil</span>
@@ -206,6 +207,119 @@
         </div>
     </div>
 
+    <!-- ========================================================= -->
+    <!-- MÓDULO VISUAL GLOBAL: MINICHAT Y EMOJIS                 -->
+    <!-- ========================================================= -->
+    <style>
+        #chatContainer {
+            transform: translateY(120%);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s, background 0.3s, backdrop-filter 0.3s;
+            opacity: 0;
+            pointer-events: none; /* Evita toques fantasma cuando está oculto */
+        }
+        #chatContainer.active {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .chat-notification-dot {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 15px;
+            height: 15px;
+            background-color: #dc3545;
+            border-radius: 50%;
+            border: 2px solid #222;
+            display: none;
+        }
+        /* Efecto Hover para Emojis Forzados PNG de Apple */
+        .emoji-btn-hover {
+            transition: transform 0.2s ease, background 0.2s ease;
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 10px;
+        }
+        .emoji-btn-hover:hover {
+            transform: scale(1.25);
+            background: rgba(255, 255, 255, 0.15) !important;
+        }
+    </style>
+
+    <!-- Botón Flotante del Chat -->
+    <button id="btnToggleChat" class="btn btn-info rounded-circle shadow-lg position-fixed" 
+            style="bottom: 25px; right: 25px; width: 60px; height: 60px; z-index: 1050; display: none; padding: 0;" 
+            onclick="toggleChatUI()">
+        <i class="bi bi-chat-dots-fill fs-3 text-dark"></i>
+        <span id="chatNotifDot" class="chat-notification-dot"></span>
+    </button>
+
+    <!-- Contenedor del Minichat. ¡BLUR Y OPACIDAD INYECTADOS DIRECTO AQUÍ! -->
+    <div id="chatContainer" class="glass-panel position-fixed d-flex flex-column shadow-lg border-info" 
+         style="bottom: 95px; right: 25px; width: 330px; height: 450px; max-height: 65vh; z-index: 1050; display: none; background: rgba(15, 20, 30, 0.65); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);">
+        
+        <div class="p-3 border-bottom border-secondary d-flex justify-content-between align-items-center" style="background: rgba(0,0,0,0.3); border-radius: 15px 15px 0 0;">
+            <strong class="text-info m-0"><i class="bi bi-chat-text-fill"></i> Chat Privado</strong>
+            <button class="btn-close btn-close-white" onclick="toggleChatUI()"></button>
+        </div>
+
+        <div id="chatMessages" class="flex-grow-1 p-3 overflow-auto d-flex flex-column" style="scroll-behavior: smooth;">
+            <div class="text-center text-muted small mt-2 mb-3 bg-dark rounded-pill py-1 px-3 mx-auto" style="opacity: 0.7;">¡Comienza el juego y el chat!</div>
+        </div>
+
+        <!-- Panel de Ajustes Visuales del Chat (Engranaje) -->
+        <div id="chatSettingsPanel" class="border-top border-secondary p-3" style="display: none; background: rgba(0,0,0,0.85);">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-info fw-bold small"><i class="bi bi-sliders"></i> Ajustes de Transparencia</span>
+                <button type="button" class="btn-close btn-close-white" style="font-size: 0.7rem;" onclick="toggleChatSettings()"></button>
+            </div>
+            
+            <label class="form-label text-light small mb-1">Opacidad de Fondo</label>
+            <input type="range" class="form-range" id="chatOpacity" min="0" max="1" step="0.05" value="0.65" oninput="updateChatStyle()">
+            
+            <label class="form-label text-light small mb-1 mt-2">Desenfoque (Blur)</label>
+            <input type="range" class="form-range" id="chatBlur" min="0" max="20" step="1" value="10" oninput="updateChatStyle()">
+        </div>
+
+        <!-- FIX DEFINITIVO EMOJIS: Forzados con la librería oficial de Apple (PNG) -->
+        <div id="stickerPicker" class="border-top border-secondary p-2" style="display: none; background: rgba(0,0,0,0.5); max-height: 140px; overflow-y: auto;">
+            <div class="d-flex flex-wrap gap-2 justify-content-center">
+                <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f923.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Risa">
+                <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f62d.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Llorar">
+                <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f621.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Enojado">
+                <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f631.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Sorpresa">
+                <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f60e.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Cool">
+                <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f480.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Calavera">
+                <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f525.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Fuego">
+                <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f44e.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Mal">
+                <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f44f.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Bien">
+                <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f440.png" class="emoji-btn-hover" onclick="sendSticker(this.src)" alt="Ojos">
+            </div>
+        </div>
+
+        <!-- Input Box -->
+        <div class="p-2 border-top border-secondary" style="background: rgba(0,0,0,0.3); border-radius: 0 0 15px 15px;">
+            <div class="input-group">
+                <!-- Botón Stickers -->
+                <button class="btn btn-outline-warning shadow-sm" type="button" onclick="toggleStickerPicker()" title="Emojis" style="border-radius: 10px 0 0 10px;">
+                    <i class="bi bi-emoji-smile-fill"></i>
+                </button>
+                <!-- Botón Ajustes Visuales (Engranaje) -->
+                <button class="btn btn-outline-info shadow-sm px-2" type="button" onclick="toggleChatSettings()" title="Ajustes visuales">
+                    <i class="bi bi-gear-fill"></i>
+                </button>
+                <input type="text" id="chatInputText" class="form-control glass-input text-white border-secondary" placeholder="Escribe..." onkeypress="handleChatEnter(event)">
+                <button class="btn btn-info fw-bold shadow-sm" type="button" onclick="sendChatText()" style="border-radius: 0 10px 10px 0;">
+                    <i class="bi bi-send-fill text-dark"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- ========================================================= -->
+
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Socket.IO JS -->
@@ -218,85 +332,314 @@
         window.CURRENT_USERNAME = "{{ current_user.username if current_user.is_authenticated else '' }}";
     </script>
     
-    <!-- Lógica de Instalación de PWA (Chrome/Brave/Edge/Firefox) -->
+    <!-- Lógica de Instalación de PWA -->
     <script>
-        // Registrar Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
-                    .then(registration => console.log('PWA ServiceWorker registrado exitosamente.'))
                     .catch(err => console.log('Error PWA ServiceWorker: ', err));
             });
         }
 
-        // Lógica de los botones de instalación
         let deferredPrompt;
         const installBtnDesktop = document.getElementById('installPwaBtn');
         const installBtnMobile = document.getElementById('installPwaBtnMobile');
-        
-        // Verificar si la PWA ya está instalada o estamos ejecutándola desde la app
         let isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
         function updateInstallButtons(show) {
-            if (isStandalone) show = false; // Jamás mostrar si ya está instalada
+            if (isStandalone) show = false; 
             if (installBtnDesktop) installBtnDesktop.style.display = show ? 'block' : 'none';
             if (installBtnMobile) installBtnMobile.style.display = show ? 'flex' : 'none';
         }
-
-        // Mostrar por defecto (Por si es Firefox, para que puedan ver el manual)
         updateInstallButtons(true);
 
-        // Chrome, Brave y Edge disparan esto si es instalable
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
-            deferredPrompt = e; // Guardamos el evento para lanzarlo luego
+            deferredPrompt = e; 
             updateInstallButtons(true);
         });
 
-        // Evento que se dispara al presionar los botones "Instalar"
         window.installPWA = () => {
             if (deferredPrompt) {
-                // Navegadores Chromium: Usar el prompt nativo
                 deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        console.log('PWA aceptada.');
-                    }
-                    deferredPrompt = null;
-                });
+                deferredPrompt.userChoice.then((choiceResult) => { deferredPrompt = null; });
             } else {
-                // Firefox / Safari / Navegadores estrictos: Lanzar el modal manual
                 let manualModal = new bootstrap.Modal(document.getElementById('pwaManualInstallModal'));
                 manualModal.show();
             }
         };
 
-        // Ocultar botones una vez que la instalación es exitosa
         window.addEventListener('appinstalled', () => {
-            console.log('PWA instalada.');
             isStandalone = true;
             updateInstallButtons(false);
         });
     </script>
 
     <!-- Scripts Modularizados de la App -->
-    <!-- 1. Interfaz de Usuario, Red y Socket (DEBEN IR PRIMERO PARA DEFINIR EL SOCKET) -->
-    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/lobby.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/network.js') }}"></script>
+    <!-- 1. Interfaz de Usuario, Red y Socket -->
+    <script src="{{ url_for('static', filename='js/auth.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/lobby.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/network.js') }}?v=3"></script>
 
-    <!-- 2. Variables Globales y Core del Juego -->
-    <script src="{{ url_for('static', filename='js/game.js') }}"></script>
+    <!-- 2. Variables Globales, Interfaz Visual y Renderizado del Tablero -->
+    <script src="{{ url_for('static', filename='js/game.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/ui_modals.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/indicador.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/board_render.js') }}?v=3"></script>
 
     <!-- 3. Módulos de Reglas (Juegos) -->
-    <script src="{{ url_for('static', filename='js/gato.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/4linea.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/gomoku.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/reversi.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/damas.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/gato.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/4linea.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/gomoku.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/reversi.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/damas.js') }}?v=3"></script>
 
     <!-- 4. Lógica de Turnos e IA -->
-    <script src="{{ url_for('static', filename='js/logicaIA.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/logicaIA.js') }}?v=3"></script>
+    
+    <!-- ======================================================================== -->
+    <!-- LÓGICA GLOBAL DEL CHAT Y EL "BANNER DE PROVOCACIÓN"                      -->
+    <!-- ======================================================================== -->
+    <script>
+        // 1. CONTROL PRINCIPAL DEL PANEL (CIERRE AGRESIVO INTEGRADO)
+        window.toggleChatUI = (forceClose = false) => {
+            const chatContainer = document.getElementById('chatContainer');
+            if (!chatContainer) return;
+            
+            const notifDot = document.getElementById('chatNotifDot');
+            if (notifDot) notifDot.style.display = 'none';
+            
+            if (forceClose || chatContainer.classList.contains('active')) {
+                // PROCEDIMIENTO DE CIERRE Y LIMPIEZA
+                chatContainer.classList.remove('active');
+                
+                const stickerPicker = document.getElementById('stickerPicker');
+                if (stickerPicker) stickerPicker.style.display = 'none';
+                
+                const settingsPanel = document.getElementById('chatSettingsPanel');
+                if (settingsPanel) settingsPanel.style.display = 'none';
+                
+                // Ocultar teclado en móviles a la fuerza
+                const input = document.getElementById('chatInputText');
+                if (input) input.blur();
+                
+            } else {
+                // APERTURA DEL CHAT
+                chatContainer.style.display = 'flex'; 
+                // Pequeño repintado forzado para que la transición CSS se active
+                void chatContainer.offsetWidth;
+                chatContainer.classList.add('active');
+                
+                setTimeout(() => {
+                    const msgBox = document.getElementById('chatMessages');
+                    if (msgBox) msgBox.scrollTop = msgBox.scrollHeight;
+                    const input = document.getElementById('chatInputText');
+                    if (input) input.focus();
+                }, 50);
+            }
+        };
+
+        // 2. ABRIR/CERRAR COMPONENTES INTERNOS
+        window.toggleStickerPicker = () => {
+            const picker = document.getElementById('stickerPicker');
+            const settings = document.getElementById('chatSettingsPanel');
+            if (settings) settings.style.display = 'none'; 
+            if (picker) picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+        };
+
+        window.toggleChatSettings = () => {
+            const settings = document.getElementById('chatSettingsPanel');
+            const picker = document.getElementById('stickerPicker');
+            if (picker) picker.style.display = 'none'; 
+            if (settings) settings.style.display = settings.style.display === 'none' ? 'block' : 'none';
+        };
+
+        // 3. ACTUALIZACIÓN EN VIVO DE BLUR Y OPACIDAD
+        window.updateChatStyle = () => {
+            const container = document.getElementById('chatContainer');
+            const opacity = document.getElementById('chatOpacity').value;
+            const blur = document.getElementById('chatBlur').value;
+            
+            if (container) {
+                container.style.background = `rgba(15, 20, 30, ${opacity})`;
+                container.style.backdropFilter = `blur(${blur}px)`;
+                container.style.webkitBackdropFilter = `blur(${blur}px)`; // Crucial para Safari/iOS
+            }
+        };
+
+        // 4. FUNCIONES DE ENVÍO DE MENSAJES (DISPARAN CIERRE AUTOMÁTICO)
+        window.sendSticker = (url) => {
+            if (typeof window.enviarMensajeChat === 'function') {
+                window.enviarMensajeChat(null, url);
+                // Cierre automático forzado
+                window.toggleChatUI(true);
+            }
+        };
+
+        window.sendChatText = () => {
+            const input = document.getElementById('chatInputText');
+            if (!input) return;
+            const text = input.value.trim();
+            if (text !== '' && typeof window.enviarMensajeChat === 'function') {
+                window.enviarMensajeChat(text, null);
+                input.value = ''; 
+                // Cierre automático forzado y quitar teclado
+                window.toggleChatUI(true);
+            }
+        };
+
+        window.handleChatEnter = (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                window.sendChatText();
+            }
+        };
+
+        // ========================================================================
+        // 5. MOSTRAR EL MENSAJE EN EL CHAT Y EL BANNER "TRASH TALK" BAJO EL TABLERO
+        // ========================================================================
+        window.mostrarMensajeEnUI = (remitente, mensaje, stickerUrl, esMio) => {
+            const chatMessages = document.getElementById('chatMessages');
+            if (!chatMessages) return;
+
+            const alignClass = esMio ? 'text-end' : 'text-start';
+            const bgClass = esMio ? 'bg-info text-dark' : 'bg-secondary text-light';
+            const marginClass = esMio ? 'ms-auto' : 'me-auto';
+            const radiusClass = esMio ? 'border-radius: 15px 15px 0 15px;' : 'border-radius: 15px 15px 15px 0;';
+
+            let contenido = '';
+            if (stickerUrl) {
+                contenido = `<img src="${stickerUrl}" alt="Emoji" style="width: 50px; height: 50px; object-fit: contain; background: transparent;">`;
+            } else if (mensaje) {
+                const safeMensaje = mensaje.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                contenido = `<span style="word-wrap: break-word;">${safeMensaje}</span>`;
+            }
+
+            const msgHtml = `
+                <div class="${alignClass} mb-3">
+                    <small class="text-muted d-block mb-1" style="font-size: 0.7rem; opacity: 0.8;">${remitente}</small>
+                    <div class="d-inline-block p-2 shadow-sm ${bgClass} ${marginClass}" style="max-width: 85%; ${radiusClass}">
+                        ${contenido}
+                    </div>
+                </div>
+            `;
+
+            chatMessages.insertAdjacentHTML('beforeend', msgHtml);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Si el mensaje es del enemigo, reproducir sonido y notificar
+            if (!esMio) {
+                if (typeof window.playMoveSound === 'function') window.playMoveSound();
+                
+                const btnToggle = document.getElementById('btnToggleChat');
+                const chatContainer = document.getElementById('chatContainer');
+                
+                if (btnToggle && chatContainer && !chatContainer.classList.contains('active')) {
+                    btnToggle.classList.remove('btn-info');
+                    btnToggle.classList.add('btn-danger', 'animate__animated', 'animate__tada');
+                    const notifDot = document.getElementById('chatNotifDot');
+                    if (notifDot) notifDot.style.display = 'block';
+                    
+                    setTimeout(() => {
+                        btnToggle.classList.remove('animate__tada', 'btn-danger');
+                        btnToggle.classList.add('btn-info');
+                    }, 1500);
+                }
+            }
+
+            // --- INYECCIÓN DEL BANNER DE PROVOCACIÓN (TRASH TALK) ---
+            let banner = document.getElementById('lastMessageBanner');
+            
+            // Construirlo si no existe, colocándolo debajo del tablero
+            if (!banner) {
+                const gameBoard = document.getElementById('gameBoard');
+                if (gameBoard) {
+                    banner = document.createElement('div');
+                    banner.id = 'lastMessageBanner';
+                    // Margen top de 35px para que se separe visiblemente del tablero
+                    banner.className = 'glass-panel p-2 text-center shadow-sm animate__animated';
+                    banner.style.cssText = 'display: none; border-radius: 12px; background: rgba(20, 25, 40, 0.85); border-left: 4px solid #0dcaf0; transition: all 0.3s ease; margin-top: 35px; margin-bottom: 20px; width: 100%; max-width: 500px;';
+                    banner.innerHTML = `
+                        <div class="d-flex align-items-center justify-content-center" style="min-height: 40px; width: 100%;">
+                            <span id="lastMessageSender" class="fw-bold me-2 text-uppercase" style="font-size: 0.85rem; letter-spacing: 1px;"></span>
+                            <div id="lastMessageContent" class="ms-1 d-flex align-items-center" style="font-size: 1.1rem;"></div>
+                        </div>
+                    `;
+                    gameBoard.parentNode.insertBefore(banner, gameBoard.nextSibling);
+                }
+            }
+
+            // Llenar el banner de provocación con datos, animarlo y desaparecerlo en 5 segs.
+            if (banner) {
+                // Cancelamos cualquier cuenta regresiva antigua
+                if (banner.hideTimeout) clearTimeout(banner.hideTimeout);
+                
+                // Mostrar banner con opacidad al máximo
+                banner.style.display = 'block';
+                banner.style.opacity = '1';
+                banner.classList.remove('animate__fadeOut'); 
+                
+                const senderSpan = document.getElementById('lastMessageSender');
+                const contentSpan = document.getElementById('lastMessageContent');
+                
+                senderSpan.innerText = remitente + ':';
+                senderSpan.className = esMio ? 'fw-bold text-success me-2 text-uppercase' : 'fw-bold text-warning me-2 text-uppercase';
+                
+                if (stickerUrl) {
+                    contentSpan.innerHTML = `<img src="${stickerUrl}" style="height: 40px; margin-left: 5px;" class="animate__animated animate__tada">`;
+                } else {
+                    const safeMensaje = mensaje.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    contentSpan.innerHTML = `<span style="font-size: 1.1rem; margin-left: 5px;" class="animate__animated animate__headShake d-inline-block text-light">${safeMensaje}</span>`;
+                }
+                
+                // Forzar animación repintando
+                banner.classList.remove('animate__pulse');
+                void banner.offsetWidth; 
+                banner.classList.add('animate__pulse');
+                
+                // Ocultar suavemente luego de 5 segundos
+                banner.hideTimeout = setTimeout(() => {
+                    banner.classList.remove('animate__pulse');
+                    banner.classList.add('animate__fadeOut');
+                    
+                    // Esperamos que termine el efecto CSS y lo ocultamos
+                    setTimeout(() => {
+                        if (banner.classList.contains('animate__fadeOut')) {
+                            banner.style.display = 'none';
+                            banner.classList.remove('animate__fadeOut');
+                        }
+                    }, 800);
+                }, 5000);
+            }
+        };
+
+        // 6. LIMPIEZA GENERAL AL CERRAR LA PARTIDA
+        document.addEventListener("DOMContentLoaded", () => {
+            setTimeout(() => {
+                if (typeof window.closeGameOver === 'function') {
+                    const originalCloseGameOver = window.closeGameOver;
+                    window.closeGameOver = function(...args) {
+                        const banner = document.getElementById('lastMessageBanner');
+                        if (banner) {
+                            if (banner.hideTimeout) clearTimeout(banner.hideTimeout);
+                            banner.style.display = 'none';
+                        }
+                        
+                        const btnToggle = document.getElementById('btnToggleChat');
+                        if (btnToggle) btnToggle.style.display = 'none';
+                        
+                        // Forzar cierre completo y seguro
+                        window.toggleChatUI(true);
+                        
+                        const chatCont = document.getElementById('chatContainer');
+                        if (chatCont) setTimeout(() => chatCont.style.display = 'none', 300);
+                        
+                        originalCloseGameOver.apply(this, args);
+                    };
+                }
+            }, 1000);
+        });
+    </script>
     
     {% block scripts %}{% endblock %}
 </body>

@@ -426,3 +426,91 @@ window.renderStatsPage = (page) => {
     }
     pagination.innerHTML = pagHtml;
 };
+
+// ==========================================
+// [MÓDULO: CHAT] - MINICHAT MULTIJUGADOR Y STICKERS
+// ==========================================
+
+/**
+ * Envía un mensaje de texto o un sticker al oponente en la sala actual.
+ */
+window.enviarMensajeChat = (mensaje, stickerUrl = null) => {
+    // Validar que exista una partida multijugador activa
+    if (!window.currentGame || window.currentGame.mode !== 'multi') return;
+    
+    // Evitar enviar si ambos están vacíos
+    if (!mensaje && !stickerUrl) return;
+    
+    socket.emit('enviar_mensaje_chat', {
+        room: window.currentGame.roomId,
+        mensaje: mensaje,
+        sticker: stickerUrl
+    });
+
+    // Mostrar nuestro propio mensaje localmente
+    window.mostrarMensajeEnUI(window.CURRENT_USERNAME, mensaje, stickerUrl, true);
+};
+
+// Recibe el mensaje de Socket.IO que envió el oponente
+socket.on('recibir_mensaje_chat', (data) => {
+    window.mostrarMensajeEnUI(data.remitente, data.mensaje, data.sticker, false);
+});
+
+/**
+ * Dibuja el mensaje o el sticker en el contenedor HTML del chat.
+ */
+window.mostrarMensajeEnUI = (remitente, mensaje, stickerUrl, esMio) => {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+
+    // Estilos dinámicos dependiendo de si el mensaje es nuestro o del oponente
+    const alignClass = esMio ? 'text-end' : 'text-start';
+    const bgClass = esMio ? 'bg-info text-dark' : 'bg-secondary text-light';
+    const marginClass = esMio ? 'ms-auto' : 'me-auto';
+    // Globos de chat con esquinas redondeadas al estilo WhatsApp
+    const radiusClass = esMio ? 'border-radius: 15px 15px 0 15px;' : 'border-radius: 15px 15px 15px 0;';
+
+    let contenido = '';
+    
+    if (stickerUrl) {
+        // Renderizado del Sticker animado
+        contenido = `<img src="${stickerUrl}" alt="Sticker" style="width: 90px; height: 90px; object-fit: contain; background: transparent;">`;
+    } else if (mensaje) {
+        // Escapar HTML para seguridad (evitar inyección de código)
+        const safeMensaje = mensaje.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        contenido = `<span style="word-wrap: break-word;">${safeMensaje}</span>`;
+    }
+
+    const msgHtml = `
+        <div class="${alignClass} mb-3">
+            <small class="text-muted d-block mb-1" style="font-size: 0.7rem; opacity: 0.8;">${remitente}</small>
+            <div class="d-inline-block p-2 shadow-sm ${bgClass} ${marginClass}" style="max-width: 85%; ${radiusClass}">
+                ${contenido}
+            </div>
+        </div>
+    `;
+
+    chatMessages.insertAdjacentHTML('beforeend', msgHtml);
+    
+    // Auto-scroll hacia el último mensaje para que siempre se vea lo más nuevo
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    // Si recibimos un mensaje, reproducimos un pequeño sonido (opcional) y animamos el botón si el chat está cerrado
+    if (!esMio) {
+        if (typeof window.playMoveSound === 'function') window.playMoveSound();
+        
+        const btnToggle = document.getElementById('btnToggleChat');
+        const chatContainer = document.getElementById('chatContainer');
+        
+        // Si el contenedor de chat no tiene la clase 'chat-open' (o similar que implementaremos en CSS), hacemos temblar el botón
+        if (btnToggle && chatContainer && !chatContainer.classList.contains('active')) {
+            btnToggle.classList.remove('btn-info');
+            btnToggle.classList.add('btn-danger', 'animate__animated', 'animate__tada'); // Requiere animate.css o puedes usar un CSS custom
+            
+            setTimeout(() => {
+                btnToggle.classList.remove('animate__tada', 'btn-danger');
+                btnToggle.classList.add('btn-info');
+            }, 1500);
+        }
+    }
+};

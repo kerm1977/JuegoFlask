@@ -231,6 +231,102 @@
         </div>
     </div>
 </div>
+
+<!-- ========================================================= -->
+<!-- MÓDULO VISUAL: MINICHAT FLOTANTE MULTIJUGADOR             -->
+<!-- ========================================================= -->
+<style>
+    /* Transiciones suaves para la apertura del chat */
+    #chatContainer {
+        transform: translateY(120%);
+        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+        opacity: 0;
+    }
+    #chatContainer.active {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    
+    /* Estilos para la galería de Stickers */
+    .sticker-btn {
+        width: 60px;
+        height: 60px;
+        cursor: pointer;
+        border-radius: 10px;
+        transition: transform 0.2s ease, background 0.2s ease;
+        padding: 5px;
+    }
+    .sticker-btn:hover {
+        transform: scale(1.15);
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    /* Efecto de notita para el botón cuando está cerrado */
+    .chat-notification-dot {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 15px;
+        height: 15px;
+        background-color: #dc3545;
+        border-radius: 50%;
+        border: 2px solid #222;
+        display: none;
+    }
+</style>
+
+<!-- Botón Flotante (Se muestra solo en modo Multi) -->
+<button id="btnToggleChat" class="btn btn-info rounded-circle shadow-lg position-fixed" 
+        style="bottom: 25px; right: 25px; width: 60px; height: 60px; z-index: 1050; display: none; padding: 0;" 
+        onclick="toggleChatUI()">
+    <i class="bi bi-chat-dots-fill fs-3 text-dark"></i>
+    <span id="chatNotifDot" class="chat-notification-dot"></span>
+</button>
+
+<!-- Contenedor principal del Minichat -->
+<div id="chatContainer" class="glass-panel position-fixed d-flex flex-column shadow-lg border-info" 
+     style="bottom: 95px; right: 25px; width: 330px; height: 450px; max-height: 65vh; z-index: 1050; display: none; background: rgba(15, 20, 30, 0.9);">
+    
+    <!-- Encabezado -->
+    <div class="p-3 border-bottom border-secondary d-flex justify-content-between align-items-center" style="background: rgba(0,0,0,0.3); border-radius: 15px 15px 0 0;">
+        <strong class="text-info m-0"><i class="bi bi-chat-text-fill"></i> Chat Privado</strong>
+        <button class="btn-close btn-close-white" onclick="toggleChatUI()"></button>
+    </div>
+
+    <!-- Área de Mensajes -->
+    <div id="chatMessages" class="flex-grow-1 p-3 overflow-auto d-flex flex-column" style="scroll-behavior: smooth;">
+        <div class="text-center text-muted small mt-2 mb-3 bg-dark rounded-pill py-1 px-3 mx-auto" style="opacity: 0.7;">¡Comienza el juego y el chat!</div>
+        <!-- Aquí inyecta lobby.js los mensajes dinámicamente -->
+    </div>
+
+    <!-- Selector de Stickers (Oculto por defecto) -->
+    <div id="stickerPicker" class="border-top border-secondary p-2" style="display: none; background: rgba(0,0,0,0.5); max-height: 140px; overflow-y: auto;">
+        <div class="d-flex flex-wrap gap-2 justify-content-center">
+            <!-- Stickers Públicos (GIF/WEBP animados transparentes) -->
+            <img src="https://media.tenor.com/2sXG4v-IlyMAAAAj/hello-wave.gif" class="sticker-btn" onclick="sendSticker(this.src)" alt="Hola">
+            <img src="https://media.tenor.com/bK1R3l1uOQQAAAAj/haha-lol.gif" class="sticker-btn" onclick="sendSticker(this.src)" alt="Risa">
+            <img src="https://media.tenor.com/aCaaXJm2U0oAAAAj/sad-crying.gif" class="sticker-btn" onclick="sendSticker(this.src)" alt="Triste">
+            <img src="https://media.tenor.com/7s1H3U5pFOkAAAAj/angry-mad.gif" class="sticker-btn" onclick="sendSticker(this.src)" alt="Enojado">
+            <img src="https://media.tenor.com/pZqPZ6T8KRAAAAAj/gg-good-game.gif" class="sticker-btn" onclick="sendSticker(this.src)" alt="GG">
+            <img src="https://media.tenor.com/815771QGzXAAAAAj/shocked-surprised.gif" class="sticker-btn" onclick="sendSticker(this.src)" alt="Wow">
+        </div>
+    </div>
+
+    <!-- Input Box -->
+    <div class="p-2 border-top border-secondary" style="background: rgba(0,0,0,0.3); border-radius: 0 0 15px 15px;">
+        <div class="input-group">
+            <button class="btn btn-outline-warning shadow-sm" type="button" onclick="toggleStickerPicker()" title="Stickers" style="border-radius: 10px 0 0 10px;">
+                <i class="bi bi-emoji-smile-fill"></i>
+            </button>
+            <input type="text" id="chatInputText" class="form-control glass-input text-white border-secondary" placeholder="Escribe un mensaje..." onkeypress="handleChatEnter(event)">
+            <button class="btn btn-info fw-bold shadow-sm" type="button" onclick="sendChatText()" style="border-radius: 0 10px 10px 0;">
+                <i class="bi bi-send-fill text-dark"></i>
+            </button>
+        </div>
+    </div>
+</div>
+<!-- ========================================================= -->
+
 {% endblock %}
 
 {% block scripts %}
@@ -385,9 +481,99 @@
         if (surrenderModalInst) {
             surrenderModalInst.hide();
         }
+        
+        // Al abandonar, también forzamos ocultar el chat
+        document.getElementById('btnToggleChat').style.display = 'none';
+        document.getElementById('chatContainer').classList.remove('active');
+        
         // Llamamos a la función real de game.js para limpiar la partida
         if (typeof closeGameOver === 'function') {
             closeGameOver();
+        }
+    };
+
+    // ========================================================
+    // INTERFAZ DEL MINICHAT (INTERACCIONES LOCALES)
+    // ========================================================
+    
+    // Abre y cierra el panel visual
+    window.toggleChatUI = () => {
+        const chatContainer = document.getElementById('chatContainer');
+        const notifDot = document.getElementById('chatNotifDot');
+        
+        // Quitamos el punto rojo si estaba
+        if (notifDot) notifDot.style.display = 'none';
+        
+        if (chatContainer.classList.contains('active')) {
+            chatContainer.classList.remove('active');
+            // Cerramos la galería de stickers si estaba abierta al cerrar el chat
+            document.getElementById('stickerPicker').style.display = 'none';
+        } else {
+            chatContainer.style.display = 'flex'; // Aseguramos que no esté en display:none
+            // Un micro-delay para permitir la transición CSS
+            setTimeout(() => {
+                chatContainer.classList.add('active');
+                // Scrolleamos abajo por si llegaron mensajes mientras estaba cerrado
+                const msgBox = document.getElementById('chatMessages');
+                msgBox.scrollTop = msgBox.scrollHeight;
+                document.getElementById('chatInputText').focus();
+            }, 10);
+        }
+    };
+
+    // Muestra u oculta la galería de stickers
+    window.toggleStickerPicker = () => {
+        const picker = document.getElementById('stickerPicker');
+        picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+    };
+
+    // Al hacer clic en un sticker, lo manda al backend y limpia
+    window.sendSticker = (url) => {
+        if (typeof window.enviarMensajeChat === 'function') {
+            window.enviarMensajeChat(null, url);
+            toggleStickerPicker(); // Cerramos la galería al enviar
+        }
+    };
+
+    // Al hacer clic en enviar texto
+    window.sendChatText = () => {
+        const input = document.getElementById('chatInputText');
+        const text = input.value.trim();
+        if (text !== '' && typeof window.enviarMensajeChat === 'function') {
+            window.enviarMensajeChat(text, null);
+            input.value = ''; // Limpiamos el cajón
+        }
+    };
+
+    // Permite enviar mensajes presionando "Enter"
+    window.handleChatEnter = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            sendChatText();
+        }
+    };
+
+    // ========================================================
+    // INTERCEPCIÓN INTELIGENTE: MODO MULTI VS LOCAL
+    // ========================================================
+    
+    // Cuando el socket nos dice que empezó el multi, MOSTRAMOS el botón de chat
+    socket.on('game_started', () => {
+        document.getElementById('btnToggleChat').style.display = 'block';
+        document.getElementById('chatContainer').style.display = 'flex'; // Lo pre-cargamos oculto abajo
+        document.getElementById('chatContainer').classList.remove('active'); // Nos aseguramos que empiece cerrado
+        document.getElementById('chatMessages').innerHTML = '<div class="text-center text-muted small mt-2 mb-3 bg-dark rounded-pill py-1 px-3 mx-auto" style="opacity: 0.7;">¡Comienza el juego y el chat!</div>';
+    });
+
+    // Interceptamos el botón jugar "Local / PC" para OCULTAR el chat
+    const originalStartLocal = window.startLocalGame;
+    window.startLocalGame = function(...args) {
+        document.getElementById('btnToggleChat').style.display = 'none';
+        document.getElementById('chatContainer').classList.remove('active');
+        document.getElementById('chatContainer').style.display = 'none';
+        
+        if (originalStartLocal) {
+            originalStartLocal.apply(this, args);
         }
     };
 </script>

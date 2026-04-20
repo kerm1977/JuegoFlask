@@ -17,7 +17,6 @@ window.playMoveSound = () => {
         gain.connect(ctx.destination);
         
         // Tipo de onda que simula madera/plástico (un "Pop" suave)
-        // Wave type simulating wood/plastic (a soft "Pop")
         osc.type = 'sine'; 
         osc.frequency.setValueAtTime(500, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.1);
@@ -27,7 +26,7 @@ window.playMoveSound = () => {
         
         osc.start(ctx.currentTime);
         osc.stop(ctx.currentTime + 0.1);
-    } catch(e) { console.warn("Audio desactivado o no soportado / Audio disabled or unsupported"); }
+    } catch(e) { console.warn("Audio desactivado o no soportado"); }
 };
 
 // ==========================================
@@ -42,13 +41,11 @@ window.makePCMove = () => {
     let chosenIndex = -1;
     let difficulty = window.currentGame.difficulty || 'normal';
 
-    // ==========================================
-    // SISTEMA DE DIFICULTAD / DIFFICULTY SYSTEM
-    // ==========================================
+    // SISTEMA DE DIFICULTAD
     let probabilidadError = 0;
-    if (difficulty === 'facil') probabilidadError = 0.60; // 60% chance of making a silly move
-    if (difficulty === 'normal') probabilidadError = 0.15; // 15% chance (more human-like)
-    if (difficulty === 'dificil') probabilidadError = 0.0; // 0% error. Always plays to win.
+    if (difficulty === 'facil') probabilidadError = 0.60; 
+    if (difficulty === 'normal') probabilidadError = 0.15; 
+    if (difficulty === 'dificil') probabilidadError = 0.0; 
     
     let cometerError = Math.random() < probabilidadError;
 
@@ -58,7 +55,6 @@ window.makePCMove = () => {
         let empty = [];
         state.board.forEach((c, i) => { if(c === 0) empty.push(i); });
         
-        // Si no comete error, busca ganar o bloquear / If no error, try to win or block
         if (!cometerError && win !== -1) chosenIndex = win;
         else if (!cometerError && block !== -1) chosenIndex = block;
         else if (!cometerError && state.board[4] === 0) chosenIndex = 4; 
@@ -233,7 +229,7 @@ window.attemptMove = (index, myPlayerNum, isMyTurn) => {
     } else if (type === 'damas') {
         if (typeof localSelection !== 'undefined') {
             if (!localSelection.multiJumping && (state.board[index] === myPlayerNum || state.board[index] === myPlayerNum + 2)) {
-                window.playMoveSound(); // Sonido al tocar tu ficha / Sound on piece selection
+                window.playMoveSound(); 
                 localSelection.selectedPiece = index; 
                 if (typeof getValidCheckersMoves === 'function') {
                     localSelection.validMoves = getValidCheckersMoves(state.board, index, myPlayerNum, false);
@@ -259,12 +255,7 @@ window.attemptMove = (index, myPlayerNum, isMyTurn) => {
     }
 
     if(validMove) {
-        // 🚀 Reproducimos sonido localmente SIN almacenar variables de animación
-        // Play sound locally WITHOUT saving animation variables
         window.playMoveSound();
-        
-        // Se han eliminado: window.currentGame.lastMoveIndex y window.currentGame.lastFlips 
-        // para desactivar el efecto de animación visual.
 
         let winnerNum = 0;
         let winningLine = [];
@@ -341,7 +332,6 @@ window.attemptMove = (index, myPlayerNum, isMyTurn) => {
                     winnerNum: winnerNum, 
                     endTurn: endTurn, 
                     winningLine: winningLine,
-                    // Se envía un indicador de movimiento solo para detonar el sonido en el rival
                     lastMoveIndex: index 
                 });
             }
@@ -372,7 +362,7 @@ window.handleGameOverResult = (winnerNum) => {
     if(winnerNum === -1) {
         if(modalHeader) modalHeader.className = "modal-header border-bottom-0 justify-content-center text-warning";
         if (msgElement) {
-            msgElement.innerText = "¡Ha sido un Empate! / It's a Tie!";
+            msgElement.innerText = "¡Ha sido un Empate!";
             msgElement.style.display = "block";
         }
     } else {
@@ -418,25 +408,36 @@ window.handleGameOverResult = (winnerNum) => {
         }
     }
 
-    if(typeof bsGameOverModal !== 'undefined' && bsGameOverModal) {
-        bsGameOverModal.show();
+    // 🚀 SOLUCIÓN INFALIBLE DE MODAL: Obligamos al DOM a abrirlo sin importar el caché o variables globales
+    let goModalEl = document.getElementById('gameOverModal');
+    if(goModalEl) {
+        try {
+            let bsModal = bootstrap.Modal.getInstance(goModalEl) || new bootstrap.Modal(goModalEl);
+            bsModal.show();
+        } catch(e) {
+            console.error("Fallo al forzar el Modal de fin de partida:", e);
+        }
+        
         setTimeout(() => {
             document.body.classList.remove('modal-open');
             document.body.style.overflow = '';
             document.body.style.paddingRight = '';
-            
-            let goModal = document.getElementById('gameOverModal');
-            if (goModal) {
-                goModal.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            }
+            goModalEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }, 150);
     }
 };
 
-window.confirmSurrender = () => { if(confirm("¿Estás seguro de que deseas abandonar la partida actual? / Are you sure you want to surrender?")) { window.closeGameOver(); } };
+window.confirmSurrender = () => { if(confirm("¿Estás seguro de que deseas abandonar la partida actual?")) { window.closeGameOver(); } };
 
 window.closeGameOver = () => { 
-    if(typeof bsGameOverModal !== 'undefined' && bsGameOverModal) bsGameOverModal.hide(); 
+    // 🚀 FIX: Forzar el cierre directamente del DOM
+    let goModalEl = document.getElementById('gameOverModal');
+    if (goModalEl) {
+        try {
+            let bsModal = bootstrap.Modal.getInstance(goModalEl);
+            if(bsModal) bsModal.hide();
+        } catch(e){}
+    }
     
     document.body.classList.remove('modal-open');
     document.body.style.overflow = '';
@@ -457,7 +458,6 @@ if (typeof socket !== 'undefined') {
         if (window.currentGame && window.currentGame.mode === 'multi') {
             window.currentGame.gameState = data.gameState;
             
-            // 🚀 Reproducimos el sonido al recibir la confirmación de la jugada enemiga
             if (data.lastMoveIndex !== undefined && typeof window.playMoveSound === 'function') window.playMoveSound();
 
             if (data.endTurn && data.winnerNum === 0) { window.currentGame.turn = window.currentGame.turn === 1 ? 2 : 1; }
@@ -465,8 +465,6 @@ if (typeof socket !== 'undefined') {
                 window.currentGame.winningLine = data.winningLine || [];
             }
             
-            // 🚀 CORRECCIÓN VITAL: Ejecutar la derrota/victoria ANTES de dibujar el tablero
-            // para que los carteles rojos/dorados aparezcan inmediatamente al perdedor.
             if (data.winnerNum !== 0 && typeof window.handleGameOverResult === 'function') {
                 window.handleGameOverResult(data.winnerNum);
             }
@@ -492,7 +490,7 @@ if (typeof socket !== 'undefined') {
             document.body.style.paddingRight = '';
             document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
         } catch (e) {
-            console.error("Error limpiando la interfaz / Error cleaning UI:", e);
+            console.error("Error limpiando la interfaz:", e);
         }
 
         window.currentGame = { mode: 'multi', gameType: data.gameType, status: 'playing', roomId: data.roomId, turn: 1, myPlayerNum: data.myPlayerNum, opponent: data.opponent };

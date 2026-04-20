@@ -184,6 +184,26 @@ def sync_state(data):
     emit('receive_sync', data, room=room_id, include_self=False)
 
 # ========================================================
+# NUEVO: MINICHAT MULTIJUGADOR CON STICKERS
+# ========================================================
+@socketio.on('enviar_mensaje_chat')
+def handle_chat_message(data):
+    if not current_user.is_authenticated:
+        return
+        
+    room_id = data.get('room')
+    mensaje = data.get('mensaje')
+    sticker = data.get('sticker')
+    
+    # Verificamos que la sala exista y retransmitimos al oponente (include_self=False)
+    if room_id in active_games:
+        emit('recibir_mensaje_chat', {
+            'remitente': current_user.username,
+            'mensaje': mensaje,
+            'sticker': sticker
+        }, room=room_id, include_self=False)
+
+# ========================================================
 # NUEVO: PERMITE BORRAR EL HISTORIAL DESDE EL PERFIL
 # ========================================================
 @socketio.on('eliminar_registro_historial')
